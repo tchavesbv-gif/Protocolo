@@ -16,12 +16,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-        /* Estilização Geral e Cores de Fundo */
-        .main {
-            background-color: #f8fafc;
-        }
-        
-        /* Cabeçalho Principal Estilizado */
+        .main { background-color: #f8fafc; }
         .header-container {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
             padding: 25px 30px;
@@ -30,20 +25,9 @@ st.markdown("""
             margin-bottom: 25px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .header-title {
-            font-size: 26px;
-            font-weight: 700;
-            margin: 0;
-            color: #ffffff;
-        }
-        .header-subtitle {
-            font-size: 14px;
-            color: #e0f2fe;
-            margin-top: 5px;
-            font-weight: 400;
-        }
+        .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
+        .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        /* FORÇAR FUNDO BRANCO E OPACIDADE NA BARRA DE PESQUISA */
         div[data-testid="stTextInput"] div[data-baseweb="input"] {
             background-color: #ffffff !important;
             border-radius: 8px !important;
@@ -55,14 +39,7 @@ st.markdown("""
             border-radius: 8px !important;
             padding: 8px 12px !important;
             font-weight: 500;
-            box-shadow: 0 2px 5px rgba(2, 132, 199, 0.15);
         }
-        div[data-testid="stTextInput"] input:focus {
-            border-color: #0369a1 !important;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25) !important;
-        }
-
-        /* Botões Gerais */
         div.stButton > button {
             background-color: #0284c7;
             color: white;
@@ -71,18 +48,9 @@ st.markdown("""
             padding: 0.4rem 0.8rem;
             font-size: 14px;
             border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
         }
-        div.stButton > button:hover {
-            background-color: #0369a1;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
-        }
-        
-        /* Ajuste de abas */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 12px;
-        }
+        div.stButton > button:hover { background-color: #0369a1; }
+        .stTabs [data-baseweb="tab-list"] { gap: 12px; }
         .stTabs [data-baseweb="tab"] {
             background-color: #ffffff;
             border-radius: 8px 8px 0px 0px;
@@ -99,7 +67,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS (SQLite)
+# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS
 # ==========================================
 def init_db():
   conn = sqlite3.connect("secretaria_teixeiras_exames.db")
@@ -111,37 +79,9 @@ def init_db():
   if tabela_existe:
     cursor.execute("PRAGMA table_info(exames)")
     colunas = [col[1] for col in cursor.fetchall()]
-
-    if "cpf" in colunas or "cns" in colunas:
-      cursor.execute("""
-            CREATE TABLE IF NOT EXISTS exames_novos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                protocolo TEXT UNIQUE NOT NULL,
-                data_coleta TEXT NOT NULL,
-                nome_paciente TEXT NOT NULL,
-                tipo_exame TEXT NOT NULL,
-                status TEXT NOT NULL,
-                data_chegada TEXT,
-                data_entrega TEXT,
-                recebido_por TEXT
-            )
-        """)
-      cursor.execute("""
-            SELECT id, protocolo, data_coleta, nome_paciente, tipo_exame, status, data_chegada, data_entrega, 
-            COALESCE(recebido_por, '') FROM exames
-        """)
-      registros_antigos = cursor.fetchall()
-      cursor.executemany("""
-            INSERT INTO exames_novos (id, protocolo, data_coleta, nome_paciente, tipo_exame, status, data_chegada, data_entrega, recebido_por)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, registros_antigos)
-      cursor.execute("DROP TABLE exames")
-      cursor.execute("ALTER TABLE exames_novos RENAME TO exames")
+    if "recebido_por" not in colunas:
+      cursor.execute("ALTER TABLE exames ADD COLUMN recebido_por TEXT")
       conn.commit()
-    else:
-      if "recebido_por" not in colunas:
-        cursor.execute("ALTER TABLE exames ADD COLUMN recebido_por TEXT")
-        conn.commit()
   else:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
@@ -157,13 +97,12 @@ def init_db():
         )
     """)
     conn.commit()
-
   conn.close()
 
 init_db()
 
 # ==========================================
-# 2. FUNÇÃO DE GERAÇÃO DE PDF DUAS VIAS
+# 2. GERAÇÃO DE PDF DUAS VIAS
 # ==========================================
 class PDFProtocoloDuasVias(FPDF):
   pass
@@ -233,7 +172,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Abas reduzidas (removida a aba de Consultar antiga)
 tab1, tab2, tab3 = st.tabs([
     "🏠 Início / Atendimento", 
     "📊 Relatório Geral",
@@ -275,24 +213,22 @@ def modal_novo_protocolo():
       if nome_paciente:
         num_protocolo = f"TX-{datetime.now().strftime('%Y')}-{datetime.now().strftime('%m%d%H%M%S')}"
         data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
-
         try:
           cursor.execute("""
                         INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por)
                         VALUES (?, ?, ?, ?, ?, ?)
                     """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Enviado ao Lab", responsavel_cadastro))
           conn.commit()
-          st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
+          st.success(f"🎉 Registro salvo! Protocolo: **{num_protocolo}**")
           st.session_state["mostrar_modal_cadastro"] = False
           st.rerun()
         except Exception as e:
           st.error(f"Erro ao salvar: {e}")
       else:
-        st.warning("Preencha pelo menos o Nome Completo do Paciente.")
+        st.warning("Preencha o Nome Completo do Paciente.")
 
 @st.dialog("📦 Gerenciar e Entregar Exames", width="large")
 def modal_entregar_exames():
-  st.markdown("Pesquise pelo nome do paciente para atualizar o status e emitir o comprovante.")
   busca_modal = st.text_input("🔎 Digite o Nome do Paciente:", key="busca_modal_input")
 
   if busca_modal:
@@ -301,79 +237,27 @@ def modal_entregar_exames():
 
     if registros:
       for reg in registros:
-        with st.expander(f"📌 Protocolo: {reg[1]} | Paciente: {reg[3]} | Status: [{reg[5]}]"):
-          col_a, col_b = st.columns(2)
-          with col_a:
-            st.write(f"**Tipo de Exame:** {reg[4]}")
-            st.write(f"**Responsável Criação:** {reg[8] or 'Não informado'}")
-          with col_b:
-            st.write(f"**Data Coleta:** {reg[2]}")
-            st.write(f"**Status Atual:** `{reg[5]}`")
-
-          edit_key = f"edit_mode_{reg[0]}"
-          if edit_key not in st.session_state:
-            st.session_state[edit_key] = False
-
-          col_btn_edit, _ = st.columns([1, 4])
-          with col_btn_edit:
-            if st.button("✏️ Editar Dados", key=f"btn_toggle_edit_{reg[0]}"):
-              st.session_state[edit_key] = not st.session_state[edit_key]
-              st.rerun()
-
-          if st.session_state[edit_key]:
-            st.markdown("---")
-            with st.form(f"form_edit_dados_{reg[0]}"):
-              e_col1, e_col2 = st.columns(2)
-              with e_col1:
-                novo_nome = st.text_input("Nome do Paciente", value=reg[3])
-                nova_data_coleta = st.text_input("Data da Coleta (DD/MM/AAAA)", value=reg[2])
-              with e_col2:
-                novo_tipo = st.text_input("Tipo de Exame", value=reg[4])
-                novo_resp = st.text_input("Responsável pelo Protocolo", value=reg[8] or "")
-              
-              col_salvar_edicao, col_cancelar_edicao = st.columns(2)
-              with col_salvar_edicao:
-                salvar_edicao = st.form_submit_button("💾 Salvar Alterações", width="stretch")
-              with col_cancelar_edicao:
-                cancelar_edicao = st.form_submit_button("❌ Cancelar", width="stretch")
-
-              if cancelar_edicao:
-                st.session_state[edit_key] = False
-                st.rerun()
-
-              if salvar_edicao:
-                cursor.execute("""
-                                UPDATE exames 
-                                SET nome_paciente = ?, data_coleta = ?, tipo_exame = ?, recebido_por = ? 
-                                WHERE id = ?
-                            """, (novo_nome, nova_data_coleta, novo_tipo, novo_resp, reg[0]))
-                conn.commit()
-                st.session_state[edit_key] = False
-                st.success("✅ Dados atualizados com sucesso!")
-                st.rerun()
-
-          st.markdown("---")
+        # Exibição enxuta direto no expansor
+        with st.expander(f"📌 {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           with st.form(f"form_update_{reg[0]}"):
             lista_opcoes_status = ["Enviado ao Lab", "Pronto na Unidade", "Entregue"]
             status_salvo = reg[5] if reg[5] in lista_opcoes_status else "Enviado ao Lab"
             idx_status_atual = lista_opcoes_status.index(status_salvo)
 
-            novo_status = st.selectbox(
-                "Atualizar Status",
-                lista_opcoes_status,
-                index=idx_status_atual,
-                key=f"status_sel_{reg[0]}"
-            )
-            recebido_por = st.text_input("Nome de quem retirou/recebeu o exame", value=reg[8] or "", key=f"rec_por_{reg[0]}")
+            c1, c2 = st.columns(2)
+            with c1:
+              novo_status = st.selectbox("Status", lista_opcoes_status, index=idx_status_atual, key=f"status_sel_{reg[0]}")
+            with c2:
+              recebido_por = st.text_input("Retirado por", value=reg[8] or "", key=f"rec_por_{reg[0]}")
 
-            atualizar = st.form_submit_button("💾 Salvar Status")
+            atualizar = st.form_submit_button("💾 Salvar Alteração")
             if atualizar:
               d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Entregue" else (reg[7] or "")
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                         """, (novo_status, d_entrega, recebido_por, reg[0]))
               conn.commit()
-              st.success("✅ Status atualizado com sucesso!")
+              st.success("✅ Atualizado!")
               st.rerun()
 
           cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
@@ -389,14 +273,13 @@ def modal_entregar_exames():
                 "data_entrega": status_atual_db[1] or datetime.now().strftime("%d/%m/%Y")
             }
             pdf_bytes = gerar_pdf_protocolo(dados_dict)
-
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:10px 18px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:10px;box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Imprimir Comprovante Duas Vias (PDF)</a>'
+            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:8px 14px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:5px;">🖨️ Imprimir Comprovante (PDF)</a>'
             st.markdown(href, unsafe_allow_html=True)
     else:
-      st.warning("Nenhum exame encontrado com este nome.")
+      st.warning("Nenhum exame encontrado.")
 
-  if st.button("❌ Fechar Janela de Entregas", width="stretch"):
+  if st.button("❌ Fechar Janela", width="stretch"):
     st.session_state["mostrar_modal_entrega"] = False
     st.rerun()
 
@@ -408,18 +291,12 @@ if st.session_state["mostrar_modal_entrega"]:
 
 with tab1:
   st.markdown("### 📋 Painel de Atendimento")
-  st.info("💡 Escolha uma das opções abaixo para iniciar o atendimento ao cidadão:")
-
   col_b1, col_b2, col_vazio = st.columns([1.5, 1.5, 2])
-
   with col_b1:
-    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     if st.button("➕ Novo Protocolo", width="stretch"):
       st.session_state["mostrar_modal_cadastro"] = True
       st.rerun()
-
   with col_b2:
-    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     if st.button("📦 Entregar Exames", width="stretch"):
       st.session_state["mostrar_modal_entrega"] = True
       st.rerun()
@@ -427,97 +304,24 @@ with tab1:
 with tab2:
   st.markdown("### Relatório Geral de Exames")
   import pandas as pd
-
   df = pd.read_sql("SELECT * FROM exames", conn)
   st.dataframe(df, width="stretch")
-
   csv = df.to_csv(index=False).encode("utf-8")
-  st.download_button(
-      "📥 Baixar Relatório Completo em CSV (Excel)",
-      csv,
-      "relatorio_exames_teixeiras.csv",
-      "csv",
-  )
+  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 
 with tab3:
-  st.markdown("### ⚙️ Manutenção do Sistema e Backup Externo")
-  
+  st.markdown("### ⚙️ Manutenção do Sistema e Backup")
   col_maint1, col_maint2 = st.columns(2)
-
   with col_maint1:
-    st.markdown("#### 💾 1. Gerar Cópia de Segurança (Backup)")
-    st.info("Baixe o arquivo completo do banco de dados contendo todos os cadastros, protocolos e históricos para guardar em local seguro.")
-    
     try:
       with open("secretaria_teixeiras_exames.db", "rb") as f:
         db_bytes = f.read()
-      
-      data_hoje = datetime.now().strftime("%Y-%m-%d_%H-%M")
-      st.download_button(
-          label="📥 Baixar Backup do Banco de Dados (.db)",
-          data=db_bytes,
-          file_name=f"backup_exames_teixeiras_{data_hoje}.db",
-          mime="application/octet-stream",
-          width="stretch"
-      )
+      st.download_button("📥 Baixar Backup (.db)", db_bytes, f"backup_{datetime.now().strftime('%Y-%m-%d')}.db", "application/octet-stream")
     except Exception as e:
-      st.error(f"Erro ao preparar o arquivo de backup: {e}")
-
+      st.error(f"Erro: {e}")
   with col_maint2:
-    st.markdown("#### 🔄 2. Restaurar Sistema a partir de Backup")
-    st.warning("⚠️ **Atenção:** Enviar um arquivo de banco de dados (`.db`) antigo vai substituir os dados atuais pelos dados contidos no arquivo enviado.")
-    
-    arquivo_backup = st.file_uploader("Selecione o arquivo de backup (.db) para restaurar", type=["db"])
-    
-    if arquivo_backup is not None:
-      if st.button("🚀 Confirmar e Restaurar Banco de Dados", width="stretch"):
-        try:
-          with open("secretaria_teixeiras_exames.db", "wb") as f:
-            f.write(arquivo_backup.getbuffer())
-          st.success("🎉 Sistema restaurado com sucesso! Recarregue a página para ver os dados atualizados.")
-        except Exception as e:
-          st.error(f"Erro ao restaurar o banco de dados: {e}")
-
-  st.markdown("---")
-  st.markdown("### 📂 Importação em Lote via Arquivo TXT / CSV")
-  st.info(
-      "💡 **Instruções para o arquivo TXT/CSV:**\n"
-      "Cada linha do arquivo deve conter os dados separados por vírgula (`,`) ou ponto e vírgula (`;`) na seguinte ordem:\n"
-      "**Nome do Paciente, Data da Coleta (DD/MM/AAAA), Tipo de Exame, Responsável**"
-  )
-
-  arquivo_txt = st.file_uploader("Selecione o arquivo TXT ou CSV para upload em lote", type=["txt", "csv"])
-
-  if arquivo_txt is not None:
-    if st.button("🚀 Processar e Importar Lote", width="stretch"):
-      try:
-        stringio = io.StringIO(arquivo_txt.getvalue().decode("utf-8", errors="ignore"))
-        linhas = stringio.readlines()
-
-        importados = 0
-        for linha in linhas:
-          linha = linha.strip()
-          if not linha:
-            continue
-
-          separador = ";" if ";" in linha else ","
-          partes = [p.strip() for p in linha.split(separador)]
-
-          if len(partes) >= 1 and partes[0]:
-            nome_paciente = partes[0]
-            data_coleta_str = partes[1] if len(partes) > 1 and partes[1] else datetime.now().strftime("%d/%m/%Y")
-            tipo_exame = partes[2] if len(partes) > 2 and partes[2] else "Exame Geral"
-            responsavel_lote = partes[3] if len(partes) > 3 and partes[3] else ""
-
-            num_protocolo = f"TX-{datetime.now().strftime('%Y')}-{datetime.now().strftime('%m%d%H%M%S')}-{importados+1}"
-
-            cursor.execute("""
-                            INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Enviado ao Lab", responsavel_lote))
-            importados += 1
-
-        conn.commit()
-        st.success(f"🎉 Sucesso! {importados} exames foram importados para o sistema.")
-      except Exception as e:
-        st.error(f"Erro ao processar o arquivo: {e}")
+    arquivo_backup = st.file_uploader("Restaurar Banco de Dados (.db)", type=["db"])
+    if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
+      with open("secretaria_teixeiras_exames.db", "wb") as f:
+        f.write(arquivo_backup.getbuffer())
+      st.success("Restaurado com sucesso! Recarregue a página.")

@@ -254,10 +254,16 @@ with tab2:
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 3: Entregar Exames
+# ABA 3: Entregar Exames (Com persistência de estado para não fechar a tela)
 with tab3:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
-  busca_input = st.text_input("🔎 Digite o Nome do Paciente para Buscar:", key="busca_aba_entrega")
+  
+  # Usando session_state para manter o texto da busca gravado na tela
+  if "busca_termo" not in st.session_state:
+    st.session_state.busca_termo = ""
+
+  busca_input = st.text_input("🔎 Digite o Nome do Paciente para Buscar:", value=st.session_state.busca_termo, key="input_busca_paciente")
+  st.session_state.busca_termo = busca_input
 
   if busca_input:
     cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
@@ -267,11 +273,10 @@ with tab3:
       st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
       for reg in registros:
         id_reg = reg[0]
+        status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
-          status_atual = reg[5] if reg[5] else "Pronto para entrega"
-
-          # Valida diretamente pelo banco de dados se o status já é "Exame retirado"
+        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{status_atual}]"):
+          
           if status_atual == "Exame retirado":
             c1, c2 = st.columns(2)
             with c1:
@@ -322,7 +327,6 @@ with tab3:
                 novo_status = "Exame retirado"
                 d_entrega = datetime.now().strftime("%d/%m/%Y")
                 
-                # Salva o nome da pessoa que retirou corretamente na coluna recebido_por
                 cursor.execute("""
                               UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                           """, (novo_status, d_entrega, recebido_por_input, id_reg))

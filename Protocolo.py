@@ -239,13 +239,12 @@ def modal_entregar_exames():
     if registros:
       for reg in registros:
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
-          with st.form(f"form_update_{reg[0]}"):
-            status_atual = reg[5] if reg[5] else "Pronto para entrega"
+          status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
+          with st.form(f"form_update_{reg[0]}"):
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
-              # Exibe sempre em verde conforme solicitado
               texto_status = "✔️ Exame retirado" if status_atual == "Exame retirado" else "🟢 Pronto para entrega"
               st.markdown(f'<div class="status-badge-verde">{texto_status}</div>', unsafe_allow_html=True)
             with c2:
@@ -263,27 +262,26 @@ def modal_entregar_exames():
               st.success("✅ Exame atualizado com sucesso!")
               st.rerun()
 
-          # Se o exame estiver com status de retirado, gera e exibe o PDF automaticamente sem passos extras
-          cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
-          status_atual_db = cursor.fetchone()
-
-          if status_atual_db and status_atual_db[0] == "Exame retirado":
+          # Se o exame já estiver com status de retirado, exibe o botão de impressão diretamente dentro do expander
+          if status_atual == "Exame retirado":
+            cursor.execute("SELECT data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
+            db_res = cursor.fetchone()
+            
             dados_dict = {
                 "protocolo": reg[1],
                 "data_coleta": reg[2],
                 "nome_paciente": reg[3],
                 "tipo_exame": reg[4],
-                "recebido_por": status_atual_db[2] or "Não informado",
-                "data_entrega": status_atual_db[1] or datetime.now().strftime("%d/%m/%Y")
+                "recebido_por": db_res[1] or reg[8] or "Não informado",
+                "data_entrega": db_res[0] or datetime.now().strftime("%d/%m/%Y")
             }
             pdf_bytes = gerar_pdf_protocolo(dados_dict)
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
             
-            st.markdown("---")
             href = f'''
                 <a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" 
                    style="display:block; text-align:center; padding:12px 20px; background-color:#10b981; color:white; 
-                   text-decoration:none; border-radius:8px; font-weight:700; font-size:16px; margin-top:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                   text-decoration:none; border-radius:8px; font-weight:700; font-size:16px; margin-top:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                    🖨️ IMPRIMIR COMPROVANTE DE ENTREGA (PDF)
                 </a>
             '''

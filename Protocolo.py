@@ -239,12 +239,12 @@ if "nome_usuario" not in st.session_state:
 if not st.session_state.autenticado:
   col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
   with col_l2:
-    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     if os.path.exists("logo_prefeitura.jpg"):
-      col_img1, col_img2, col_img3 = st.columns([1, 1, 1])
+      col_img1, col_img2, col_img3 = st.columns([1, 2.2, 1])
       with col_img2:
-        st.image("logo_prefeitura.jpg", width=110)
+        st.image("logo_prefeitura.jpg", width=180)
     
     st.markdown("""
           <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 15px; margin-bottom: 25px;">
@@ -344,11 +344,11 @@ def gerar_pdf_protocolo(dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-col_logo, col_h1, col_h2 = st.columns([1, 6, 2.5])
+col_logo, col_h1, col_h2 = st.columns([1.2, 5.8, 2.5])
 
 with col_logo:
   if os.path.exists("logo_prefeitura.jpg"):
-    st.image("logo_prefeitura.jpg", width=90)
+    st.image("logo_prefeitura.jpg", width=150)
   else:
     st.markdown("🏛️")
 

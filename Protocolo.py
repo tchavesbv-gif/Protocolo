@@ -21,7 +21,7 @@ st.markdown("""
         /* Caixa unificada do cabeçalho */
         .header-box-unica {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
-            padding: 16px 24px;
+            padding: 20px 24px;
             border-radius: 12px;
             color: white;
             margin-bottom: 25px;
@@ -32,20 +32,20 @@ st.markdown("""
         }
         
         .header-title {
-            font-size: 20px !important;
+            font-size: 28px !important;
             font-weight: 700 !important;
             margin: 0 !important;
             color: #ffffff !important;
         }
         
         .header-subtitle {
-            font-size: 13px !important;
+            font-size: 16px !important;
             color: #e0f2fe !important;
-            margin: 2px 0 0 0 !important;
+            margin: 4px 0 0 0 !important;
         }
         
         .header-user-info {
-            font-size: 13px !important;
+            font-size: 14px !important;
             color: #f1f5f9 !important;
             text-align: right;
             margin: 0 0 4px 0;

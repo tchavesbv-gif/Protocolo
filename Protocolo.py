@@ -494,17 +494,22 @@ if st.session_state.perfil_atual == "admin":
   with tab4:
     st.markdown("### ⚙️ Gerenciamento de Usuários do Sistema")
     
-    with st.form("form_cadastrar_usuario_admin"):
+    if "form_user_version" not in st.session_state:
+      st.session_state.form_user_version = 0
+
+    uv = st.session_state.form_user_version
+
+    with st.form(f"form_cadastrar_usuario_admin_{uv}"):
       st.markdown("**Cadastrar Novo Usuário (Atendente ou Admin)**")
       col_u1, col_u2, col_u3, col_u4 = st.columns(4)
       with col_u1:
-        novo_user_log = st.text_input("Nome de Usuário (Login)")
+        novo_user_log = st.text_input("Nome de Usuário (Login)", key=f"u_log_{uv}")
       with col_u2:
-        novo_user_senha = st.text_input("Senha", type="password")
+        novo_user_senha = st.text_input("Senha", type="password", key=f"u_sen_{uv}")
       with col_u3:
-        novo_user_nome = st.text_input("Nome Completo")
+        novo_user_nome = st.text_input("Nome Completo", key=f"u_nom_{uv}")
       with col_u4:
-        novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"])
+        novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"], key=f"u_prf_{uv}")
       
       btn_salvar_novo_user = st.form_submit_button("➕ Criar Novo Usuário")
       if btn_salvar_novo_user:
@@ -516,6 +521,8 @@ if st.session_state.perfil_atual == "admin":
                       """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
             conn.commit()
             registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
+            
+            st.session_state.form_user_version += 1
             st.success(f"Usuário **{novo_user_log.strip()}** cadastrado com sucesso!")
             st.rerun()
           except sqlite3.IntegrityError:

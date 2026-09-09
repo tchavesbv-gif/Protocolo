@@ -241,29 +241,16 @@ def modal_entregar_exames():
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-          with st.form(f"form_update_{reg[0]}"):
+          if status_atual == "Exame retirado":
+            # Se já foi retirado, mostra o status verde, quem retirou e o botão foguetinho gerando o PDF diretamente
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
-              texto_status = "✔️ Exame retirado" if status_atual == "Exame retirado" else "🟢 Pronto para entrega"
-              st.markdown(f'<div class="status-badge-verde">{texto_status}</div>', unsafe_allow_html=True)
+              st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
-              valor_inicial_retirado = reg[8] if reg[8] is not None else ""
-              recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
+              st.markdown("Retirado por")
+              st.text_input("Retirado por (Fixado)", value=reg[8] or "", disabled=True, key=f"rec_por_fixo_{reg[0]}")
 
-            liberar = st.form_submit_button("🚀 Liberar Exame e Gerar PDF")
-            if liberar:
-              novo_status = "Exame retirado"
-              d_entrega = datetime.now().strftime("%d/%m/%Y")
-              cursor.execute("""
-                            UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                        """, (novo_status, d_entrega, recebido_por, reg[0]))
-              conn.commit()
-              st.success("✅ Exame atualizado com sucesso!")
-              st.rerun()
-
-          # Se o exame já estiver retirado, mostra o botão do foguetinho transformado em link de download logo abaixo do form
-          if status_atual == "Exame retirado":
             cursor.execute("SELECT data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
             db_res = cursor.fetchone()
             
@@ -281,11 +268,32 @@ def modal_entregar_exames():
             href = f'''
                 <a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" 
                    style="display:inline-block; padding:8px 14px; background-color:#0284c7; color:white; 
-                   text-decoration:none; border-radius:8px; font-weight:600; font-size:14px; margin-top:10px;">
+                   text-decoration:none; border-radius:8px; font-weight:600; font-size:14px; margin-top:15px;">
                    🚀 Imprimir Comprovante de Entrega (PDF)
                 </a>
             '''
             st.markdown(href, unsafe_allow_html=True)
+
+          else:
+            # Se ainda estiver pendente, mostra o formulário com o botão do foguetinho para salvar e liberar
+            with st.form(f"form_update_{reg[0]}"):
+              c1, c2 = st.columns(2)
+              with c1:
+                st.markdown("Status Atual")
+                st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
+              with c2:
+                recebido_por = st.text_input("Retirado por", value="", key=f"rec_por_{reg[0]}")
+
+              liberar = st.form_submit_button("🚀 Liberar Exame e Gerar PDF")
+              if liberar:
+                novo_status = "Exame retirado"
+                d_entrega = datetime.now().strftime("%d/%m/%Y")
+                cursor.execute("""
+                              UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
+                          """, (novo_status, d_entrega, recebido_por, reg[0]))
+                conn.commit()
+                st.success("✅ Exame atualizado com sucesso!")
+                st.rerun()
     else:
       st.warning("Nenhum exame encontrado.")
 

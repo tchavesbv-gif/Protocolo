@@ -50,7 +50,16 @@ st.markdown("""
             font-size: 13px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             display: inline-block;
-            margin-top: 8px;
+        }
+
+        .card-paciente {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-left: 5px solid #0284c7;
+            padding: 18px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .info-retirada-box {
@@ -254,7 +263,7 @@ with tab2:
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 3: Entregar Exames
+# ABA 3: Entregar Exames (Substituído expander por cartões estáticos para evitar fechamento)
 with tab3:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
   
@@ -265,7 +274,6 @@ with tab3:
   st.session_state.busca_termo = busca_input
 
   if busca_input:
-    # Busca atualizada direto do banco para refletir alterações instantaneamente
     cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
     registros = cursor.fetchall()
 
@@ -273,57 +281,64 @@ with tab3:
       st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
       for reg in registros:
         id_reg = reg[0]
+        protocolo = reg[1]
+        data_coleta = reg[2]
+        nome_paciente = reg[3]
+        tipo_exame = reg[4]
         status_atual = reg[5] if reg[5] else "Pronto para entrega"
-        nome_retirou_db = reg[8] if reg[8] else ""
-        data_entrega_db = reg[7] if reg[7] else ""
+        data_cheg = reg[6] or 'N/D'
+        data_entrega_db = reg[7] or ''
+        recebido_por_db = reg[8] or ''
+        data_protocolo = reg[9] or 'N/D'
 
-        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{status_atual}]"):
-          
-          # Se o exame já consta como retirado (seja agora ou anteriormente)
+        # Renderiza usando um layout limpo em cartão (sem colapsar)
+        with st.container():
+          st.markdown(f"""
+            <div class="card-paciente">
+                <b>📌 Protocolo:</b> {protocolo} | <b>Data Registro:</b> {data_protocolo}<br>
+                <b>👤 Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">{nome_paciente}</span><br>
+                <b>🧪 Exame:</b> {tipo_exame} | <b>Coleta:</b> {data_coleta}
+            </div>
+          """, unsafe_allow_html=True)
+
           if status_atual == "Exame retirado":
-            c1, c2 = st.columns(2)
-            with c1:
-              st.markdown("Status Atual")
+            col_st1, col_st2 = st.columns(2)
+            with col_st1:
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
-            with c2:
-              st.markdown("Detalhes da Retirada")
+            with col_st2:
               st.markdown(f"""
                 <div class="info-retirada-box">
-                    👤 Retirado por: <b>{nome_retirou_db}</b><br>
+                    👤 Retirado por: <b>{recebido_por_db}</b><br>
                     📅 Data da Retirada: <b>{data_entrega_db}</b>
                 </div>
               """, unsafe_allow_html=True)
             
             st.markdown("---")
-            st.markdown("### 🖨️ Emissão de Comprovante")
-            
             dados_pdf = {
-                "protocolo": reg[1],
-                "data_coleta": reg[2],
-                "nome_paciente": reg[3],
-                "tipo_exame": reg[4],
+                "protocolo": protocolo,
+                "data_coleta": data_coleta,
+                "nome_paciente": nome_paciente,
+                "tipo_exame": tipo_exame,
                 "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
-                "recebido_por": nome_retirou_db
+                "recebido_por": recebido_por_db
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
             st.download_button(
-                label="📄 CLIQUE AQUI PARA BAIXAR / IMPRIMIR COMPROVANTE (PDF)",
+                label=f"📄 BAIXAR / IMPRIMIR COMPROVANTE (PDF) - {protocolo}",
                 data=pdf_bytes,
-                file_name=f"comprovante_{reg[1]}.pdf",
+                file_name=f"comprovante_{protocolo}.pdf",
                 mime="application/pdf",
                 key=f"dl_pdf_retirado_{id_reg}"
             )
-
           else:
-            c1, c2 = st.columns(2)
-            with c1:
-              st.markdown("Status Atual")
-              st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
-            with c2:
-              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar o exame)", value="", key=f"rec_por_{id_reg}")
+            col_st1, col_st2 = st.columns(2)
+            with col_st1:
+              st.markdown('<div class="status-badge-verde" style="background-color: #0284c7;">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
+            with col_st2:
+              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{id_reg}")
 
-            if st.button("🚀 Concluir Retirada", key=f"btn_liberar_{id_reg}"):
+            if st.button("🚀 Concluir Retirada e Liberar Comprovante", key=f"btn_liberar_{id_reg}"):
               if recebido_por_input.strip():
                 novo_status = "Exame retirado"
                 d_entrega = datetime.now().strftime("%d/%m/%Y")
@@ -333,14 +348,12 @@ with tab3:
                           """, (novo_status, d_entrega, recebido_por_input.strip(), id_reg))
                 conn.commit()
                 
-                st.success("✅ Exame concluído com sucesso! O comprovante já está disponível abaixo.")
-                # Força a atualização local das variáveis do loop para redesenhar a tela aberta sem fechar o expander
-                status_atual = novo_status
-                nome_retirou_db = recebido_por_input.strip()
-                data_entrega_db = d_entrega
+                st.success("✅ Exame concluído com sucesso! Atualizando visualização...")
                 st.rerun()
               else:
-                st.warning("Por favor, preencha o nome de quem está retirando o exame antes de concluir.")
+                st.warning("Por favor, preencha o nome de quem está retirando o exame.")
+          
+          st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 

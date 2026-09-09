@@ -68,7 +68,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS (NOVA VERSÃO)
+# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS
 # ==========================================
 DB_NAME = "secretaria_teixeiras_v2.db"
 
@@ -156,7 +156,7 @@ def gerar_pdf_protocolo(dados):
   return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 3. INTERFACE VISUAL
+# 3. INTERFACE VISUAL E FUNÇÕES DE MODAL
 # ==========================================
 st.markdown("""
     <div class="header-container">
@@ -194,9 +194,9 @@ def modal_novo_protocolo():
 
     col_f1, col_f2 = st.columns(2)
     with col_f1:
-      submitted = st.form_submit_button("💾 Salvar Registro de Exame", width="stretch")
+      submitted = st.form_submit_button("💾 Salvar Registro de Exame")
     with col_f2:
-      fechar = st.form_submit_button("❌ Fechar Janela", width="stretch")
+      fechar = st.form_submit_button("❌ Fechar Janela")
 
     if fechar:
       st.session_state["mostrar_modal_cadastro"] = False
@@ -277,10 +277,11 @@ def modal_entregar_exames():
     else:
       st.warning("Nenhum exame encontrado.")
 
-  if st.button("❌ Fechar Janela", width="stretch"):
+  if st.button("❌ Fechar Janela", key="fechar_modal_entrega"):
     st.session_state["mostrar_modal_entrega"] = False
     st.rerun()
 
+# Executa os modais condicionalmente apenas quando acionados via estado
 if st.session_state["mostrar_modal_cadastro"]:
   modal_novo_protocolo()
 
@@ -291,11 +292,11 @@ with tab1:
   st.markdown("### 📋 Painel de Atendimento")
   col_b1, col_b2, col_vazio = st.columns([1.5, 1.5, 2])
   with col_b1:
-    if st.button("➕ Novo Protocolo", width="stretch"):
+    if st.button("➕ Novo Protocolo"):
       st.session_state["mostrar_modal_cadastro"] = True
       st.rerun()
   with col_b2:
-    if st.button("📦 Entregar Exames", width="stretch"):
+    if st.button("📦 Entregar Exames"):
       st.session_state["mostrar_modal_entrega"] = True
       st.rerun()
 
@@ -303,7 +304,7 @@ with tab2:
   st.markdown("### Relatório Geral de Exames")
   import pandas as pd
   df = pd.read_sql("SELECT * FROM exames", conn)
-  st.dataframe(df, width="stretch")
+  st.dataframe(df, use_container_width=True)
   csv = df.to_csv(index=False).encode("utf-8")
   st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 

@@ -115,12 +115,12 @@ st.markdown("""
         }
         div.stButton > button:hover { background-color: #0369a1; }
 
-        /* Botão de Sair em vermelho dentro do layout */
+        /* Botão de Sair em vermelho dentro do cabeçalho */
         div.btn-logout div.stButton > button {
             background-color: #ef4444 !important;
             color: white !important;
-            font-size: 14px !important;
-            padding: 0.5rem 1rem !important;
+            font-size: 13px !important;
+            padding: 0.4rem 0.9rem !important;
             border-radius: 6px !important;
         }
         div.btn-logout div.stButton > button:hover {
@@ -326,13 +326,13 @@ def gerar_pdf_protocolo(dados):
   return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 4. INTERFACE PRINCIPAL DO SISTEMA
+# 4. INTERFACE PRINCIPAL DO SISTEMA (CABEÇALHO ÚNICO)
 # ==========================================
-col_h1, col_h2 = st.columns([5, 1])
+col_info, col_btn = st.columns([6, 1])
 
-with col_h1:
+with col_info:
   st.markdown(f"""
-        <div class="header-box" style="margin-bottom: 0px;">
+        <div class="header-box">
             <div class="header-content">
                 <h1>🏥 Secretaria Municipal de Saúde de Teixeiras</h1>
                 <p>Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
@@ -341,9 +341,9 @@ with col_h1:
         </div>
     """, unsafe_allow_html=True)
 
-with col_h2:
-  # Espaçamento para alinhar verticalmente com o bloco azul
-  st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
+with col_btn:
+  # Alinha o botão perfeitamente ao centro vertical do bloco azul
+  st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
   st.markdown('<div class="btn-logout">', unsafe_allow_html=True)
   if st.button("🚪 Sair", key="btn_logout_topo", use_container_width=True):
     registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
@@ -353,8 +353,6 @@ with col_h2:
     st.session_state.nome_usuario = None
     st.rerun()
   st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
 # Abas dinâmicas baseadas no perfil
 if st.session_state.perfil_atual == "admin":

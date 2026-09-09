@@ -156,7 +156,7 @@ def gerar_pdf_protocolo(dados):
   return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 3. INTERFACE VISUAL E FUNÇÕES DE MODAL
+# 3. INTERFACE VISUAL E MODAIS
 # ==========================================
 st.markdown("""
     <div class="header-container">
@@ -173,12 +173,6 @@ tab1, tab2, tab3 = st.tabs([
 
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
-
-if "mostrar_modal_cadastro" not in st.session_state:
-  st.session_state["mostrar_modal_cadastro"] = False
-
-if "mostrar_modal_entrega" not in st.session_state:
-  st.session_state["mostrar_modal_entrega"] = False
 
 @st.dialog("📝 Registrar Novo Exame Coletado", width="large")
 def modal_novo_protocolo():
@@ -199,7 +193,6 @@ def modal_novo_protocolo():
       fechar = st.form_submit_button("❌ Fechar Janela")
 
     if fechar:
-      st.session_state["mostrar_modal_cadastro"] = False
       st.rerun()
 
     if submitted:
@@ -214,7 +207,6 @@ def modal_novo_protocolo():
                     """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", "", data_protocolo_str))
           conn.commit()
           st.success(f"🎉 Registro salvo! Protocolo: **{num_protocolo}**")
-          st.session_state["mostrar_modal_cadastro"] = False
           st.rerun()
         except Exception as e:
           st.error(f"Erro ao salvar: {e}")
@@ -231,7 +223,7 @@ def modal_entregar_exames():
 
     if registros:
       for reg in registros:
-        with st.expander(f"📌 {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
+        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           with st.form(f"form_update_{reg[0]}"):
             lista_opcoes_status = ["Pronto para entrega", "Exame retirado"]
             
@@ -278,27 +270,17 @@ def modal_entregar_exames():
       st.warning("Nenhum exame encontrado.")
 
   if st.button("❌ Fechar Janela", key="fechar_modal_entrega"):
-    st.session_state["mostrar_modal_entrega"] = False
     st.rerun()
-
-# Executa os modais condicionalmente apenas quando acionados via estado
-if st.session_state["mostrar_modal_cadastro"]:
-  modal_novo_protocolo()
-
-if st.session_state["mostrar_modal_entrega"]:
-  modal_entregar_exames()
 
 with tab1:
   st.markdown("### 📋 Painel de Atendimento")
   col_b1, col_b2, col_vazio = st.columns([1.5, 1.5, 2])
   with col_b1:
     if st.button("➕ Novo Protocolo"):
-      st.session_state["mostrar_modal_cadastro"] = True
-      st.rerun()
+      modal_novo_protocolo()
   with col_b2:
     if st.button("📦 Entregar Exames"):
-      st.session_state["mostrar_modal_entrega"] = True
-      st.rerun()
+      modal_entregar_exames()
 
 with tab2:
   st.markdown("### Relatório Geral de Exames")

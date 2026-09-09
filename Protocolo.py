@@ -285,55 +285,26 @@ def modal_entregar_exames():
             )
 
           else:
-            # Variável de controle na sessão para saber se este registro acabou de ser liberado
-            chave_liberado = f"liberado_{reg[0]}"
-            
-            if st.session_state.get(chave_liberado, False):
-              st.success("✅ Exame liberado com sucesso!")
-              st.markdown("Clique abaixo para baixar e imprimir o comprovante de retirada:")
-              
-              dados_pdf = {
-                  "protocolo": reg[1],
-                  "data_coleta": reg[2],
-                  "nome_paciente": reg[3],
-                  "tipo_exame": reg[4],
-                  "data_entrega": st.session_state.get(f"d_entrega_{reg[0]}", datetime.now().strftime("%d/%m/%Y")),
-                  "recebido_por": st.session_state.get(f"rec_nome_{reg[0]}", "")
-              }
-              pdf_bytes = gerar_pdf_protocolo(dados_pdf)
-              
-              st.download_button(
-                  label="🖨️ Imprimir Comprovante Agora",
-                  data=pdf_bytes,
-                  file_name=f"comprovante_{reg[1]}.pdf",
-                  mime="application/pdf",
-                  key=f"dl_pdf_novo_{reg[0]}"
-              )
-            else:
-              with st.form(f"form_update_{reg[0]}"):
-                c1, c2 = st.columns(2)
-                with c1:
-                  st.markdown("Status Atual")
-                  st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
-                with c2:
-                  recebido_por = st.text_input("Retirado por", value="", key=f"rec_por_{reg[0]}")
+            # Formulário para liberação rápida
+            with st.form(f"form_update_{reg[0]}"):
+              c1, c2 = st.columns(2)
+              with c1:
+                st.markdown("Status Atual")
+                st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
+              with c2:
+                recebido_por = st.text_input("Retirado por", value="", key=f"rec_por_{reg[0]}")
 
-                liberar = st.form_submit_button("🚀 Liberar Exame e Gerar PDF")
-                if liberar:
-                  novo_status = "Exame retirado"
-                  d_entrega = datetime.now().strftime("%d/%m/%Y")
-                  
-                  # Atualiza no Banco de Dados
-                  cursor.execute("""
-                                UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                            """, (novo_status, d_entrega, recebido_por, reg[0]))
-                  conn.commit()
-                  
-                  # Salva na sessão para exibir o botão de impressão imediatamente
-                  st.session_state[chave_liberado] = True
-                  st.session_state[f"rec_nome_{reg[0]}"] = recebido_por
-                  st.session_state[f"d_entrega_{reg[0]}"] = d_entrega
-                  st.rerun()
+              liberar = st.form_submit_button("🚀 Concluir Retirada")
+              if liberar:
+                novo_status = "Exame retirado"
+                d_entrega = datetime.now().strftime("%d/%m/%Y")
+                
+                cursor.execute("""
+                              UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
+                          """, (novo_status, d_entrega, recebido_por, reg[0]))
+                conn.commit()
+                st.success("✅ Exame atualizado com sucesso!")
+                st.rerun()
     else:
       st.warning("Nenhum exame encontrado.")
 

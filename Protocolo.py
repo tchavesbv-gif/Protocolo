@@ -40,18 +40,29 @@ st.markdown("""
             font-weight: 500;
         }
 
-        /* Botão visual estilizado para o Status (Sempre Verde) */
+        /* Botão visual estilizado para o Status (Menor e centralizado) */
         .status-badge-verde {
             background-color: #10b981;
             color: white;
-            padding: 10px 16px;
-            border-radius: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-weight: 700;
             text-align: center;
-            font-size: 15px;
+            font-size: 13px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: block;
-            margin-top: 26px;
+            display: inline-block;
+            margin-top: 8px;
+        }
+
+        /* Caixa de destaque para Informações da Retirada */
+        .info-retirada-box {
+            background-color: #f1f5f9;
+            border-left: 4px solid #10b981;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #1e293b;
         }
 
         div.stButton > button {
@@ -240,16 +251,23 @@ def modal_entregar_exames():
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
           if status_atual == "Exame retirado":
-            # Se já foi retirado, mostra apenas o status verde e o campo fixo, sem nenhum botão de impressão
+            # Exibe status menor e card com a pessoa em negrito e a data de retirada
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
-              st.markdown("Retirado por")
-              st.text_input("Retirado por (Fixado)", value=reg[8] or "", disabled=True, key=f"rec_por_fixo_{reg[0]}")
+              st.markdown("Detalhes da Retirada")
+              nome_retirou = reg[8] if reg[8] else "Não informado"
+              data_retirada = reg[7] if reg[7] else "Não informada"
+              st.markdown(f"""
+                <div class="info-retirada-box">
+                    👤 Retirado por: <b>{nome_retirou}</b><br>
+                    📅 Data da Retirada: <b>{data_retirada}</b>
+                </div>
+              """, unsafe_allow_html=True)
           else:
-            # Se ainda estiver pendente, mostra o formulário com o botão do foguetinho para salvar e liberar
+            # Se ainda estiver pendente, exibe o formulário de liberação padrão
             with st.form(f"form_update_{reg[0]}"):
               c1, c2 = st.columns(2)
               with c1:

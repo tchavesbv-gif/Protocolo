@@ -68,26 +68,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS
+# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS (NOVA VERSÃO)
 # ==========================================
-def init_db():
-  conn = sqlite3.connect("secretaria_teixeiras_exames.db")
-  cursor = conn.cursor()
-  
-  cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='exames'")
-  tabela_existe = cursor.fetchone()
+DB_NAME = "secretaria_teixeiras_v2.db"
 
-  if tabela_existe:
-    cursor.execute("PRAGMA table_info(exames)")
-    colunas = [col[1] for col in cursor.fetchall()]
-    if "recebido_por" not in colunas:
-      cursor.execute("ALTER TABLE exames ADD COLUMN recebido_por TEXT")
-      conn.commit()
-    if "data_protocolo" not in colunas:
-      cursor.execute("ALTER TABLE exames ADD COLUMN data_protocolo TEXT")
-      conn.commit()
-  else:
-    cursor.execute("""
+def init_db():
+  conn = sqlite3.connect(DB_NAME)
+  cursor = conn.cursor()
+  cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             protocolo TEXT UNIQUE NOT NULL,
@@ -101,7 +89,7 @@ def init_db():
             data_protocolo TEXT
         )
     """)
-    conn.commit()
+  conn.commit()
   conn.close()
 
 init_db()
@@ -183,7 +171,7 @@ tab1, tab2, tab3 = st.tabs([
     "⚙️ Manutenção do Sistema"
 ])
 
-conn = sqlite3.connect("secretaria_teixeiras_exames.db", check_same_thread=False)
+conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
 
 if "mostrar_modal_cadastro" not in st.session_state:
@@ -257,7 +245,6 @@ def modal_entregar_exames():
             with c1:
               novo_status = st.selectbox("Status", lista_opcoes_status, index=idx_status_atual, key=f"status_sel_{reg[0]}")
             with c2:
-              # Campo em branco por padrão para preenchimento de quem retirou
               valor_inicial_retirado = reg[8] if reg[8] is not None else ""
               recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
 
@@ -326,7 +313,7 @@ with tab3:
   
   with col_maint1:
     try:
-      with open("secretaria_teixeiras_exames.db", "rb") as f:
+      with open(DB_NAME, "rb") as f:
         db_bytes = f.read()
       st.download_button("📥 Baixar Backup (.db)", db_bytes, f"backup_{datetime.now().strftime('%Y-%m-%d')}.db", "application/octet-stream")
     except Exception as e:
@@ -335,7 +322,7 @@ with tab3:
   with col_maint2:
     arquivo_backup = st.file_uploader("Restaurar Banco (.db)", type=["db"])
     if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
-      with open("secretaria_teixeiras_exames.db", "wb") as f:
+      with open(DB_NAME, "wb") as f:
         f.write(arquivo_backup.getbuffer())
       st.success("Restaurado! Recarregue a página.")
 
@@ -344,8 +331,8 @@ with tab3:
     if st.button("🗑️ Zerar / Limpar Banco de Dados"):
       try:
         conn.close()
-        if os.path.exists("secretaria_teixeiras_exames.db"):
-          os.remove("secretaria_teixeiras_exames.db")
+        if os.path.exists(DB_NAME):
+          os.remove(DB_NAME)
         st.success("Banco de dados limpo e zerado com sucesso!")
         st.rerun()
       except Exception as e:

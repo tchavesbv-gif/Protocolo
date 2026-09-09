@@ -213,18 +213,25 @@ with tab1:
     retirados = cursor.fetchone()[0]
     st.metric("Exames Já Retirados", retirados)
 
-# ABA 2: Novo Protocolo (Direto na aba, sem fechar nada)
+# ABA 2: Novo Protocolo (Com limpeza total garantida via session_state)
 with tab2:
   st.markdown("### 📝 Registrar Novo Exame Coletado")
-  with st.form("form_cadastro_direto"):
+
+  # Gerenciador de versão para limpar os inputs do formulário com segurança
+  if "form_version" not in st.session_state:
+    st.session_state.form_version = 0
+
+  v = st.session_state.form_version
+
+  with st.form(f"form_cadastro_direto_{v}", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
       data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
     with col2:
-      nome_paciente = st.text_input("Nome Completo do Paciente")
+      nome_paciente = st.text_input("Nome Completo do Paciente", key=f"val_nome_{v}")
     
-    tipo_exame = st.text_input("Tipo de Exame (ex: Hemograma, Preventivo...)")
-    responsavel_cadastro = st.text_input("Responsável pelo Protocolo (Quem realizou o atendimento)")
+    tipo_exame = st.text_input("Tipo de Exame (ex: Hemograma, Preventivo...)", key=f"val_tipo_{v}")
+    responsavel_cadastro = st.text_input("Responsável pelo Protocolo (Quem realizou o atendimento)", key=f"val_resp_{v}")
 
     submitted = st.form_submit_button("💾 Salvar Registro de Exame")
 
@@ -239,13 +246,17 @@ with tab2:
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", "", data_protocolo_str))
           conn.commit()
+          
+          # Incrementa a versão para forçar o formulário a nascer totalmente limpo na próxima renderização
+          st.session_state.form_version += 1
           st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
+          st.rerun()
         except Exception as e:
           st.error(f"Erro ao salvar: {e}")
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 3: Entregar Exames (Totalmente na página principal, zero risco de fechar)
+# ABA 3: Entregar Exames
 with tab3:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
   busca_input = st.text_input("🔎 Digite o Nome do Paciente para Buscar:", key="busca_aba_entrega")
@@ -263,7 +274,6 @@ with tab3:
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-          # Se já está retirado ou acabou de confirmar no botão do foguetinho
           if status_atual == "Exame retirado" or st.session_state.get(retirada_feita_key, False):
             c1, c2 = st.columns(2)
             with c1:
@@ -293,7 +303,6 @@ with tab3:
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
-            # Botão estático realçado de PDF
             st.download_button(
                 label="📄 CLIQUE AQUI PARA BAIXAR / IMPRIMIR COMPROVANTE (PDF)",
                 data=pdf_bytes,

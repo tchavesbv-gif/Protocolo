@@ -40,7 +40,6 @@ st.markdown("""
             font-weight: 500;
         }
 
-        /* Botão visual estilizado para o Status (Menor e centralizado) */
         .status-badge-verde {
             background-color: #10b981;
             color: white;
@@ -54,7 +53,6 @@ st.markdown("""
             margin-top: 8px;
         }
 
-        /* Caixa de destaque para Informações da Retirada */
         .info-retirada-box {
             background-color: #f1f5f9;
             border-left: 4px solid #10b981;
@@ -65,6 +63,7 @@ st.markdown("""
             color: #1e293b;
         }
 
+        /* Botão padrão */
         div.stButton > button {
             background-color: #0284c7;
             color: white;
@@ -75,6 +74,7 @@ st.markdown("""
             border: none;
         }
         div.stButton > button:hover { background-color: #0369a1; }
+
         .stTabs [data-baseweb="tab-list"] { gap: 12px; }
         .stTabs [data-baseweb="tab"] {
             background-color: #ffffff;
@@ -267,6 +267,7 @@ def modal_entregar_exames():
               """, unsafe_allow_html=True)
             
             st.markdown("---")
+            st.markdown("### 🖨️ Emissão de Comprovante")
             dados_pdf = {
                 "protocolo": reg[1],
                 "data_coleta": reg[2],
@@ -276,8 +277,10 @@ def modal_entregar_exames():
                 "recebido_por": reg[8] or ""
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
+            
+            # Botão de download estático e realçado
             st.download_button(
-                label="🖨️ Imprimir / Baixar Comprovante",
+                label="📄 CLIQUE AQUI PARA BAIXAR / IMPRIMIR COMPROVANTE (PDF)",
                 data=pdf_bytes,
                 file_name=f"comprovante_{reg[1]}.pdf",
                 mime="application/pdf",
@@ -285,26 +288,23 @@ def modal_entregar_exames():
             )
 
           else:
-            # Formulário para liberação rápida
-            with st.form(f"form_update_{reg[0]}"):
-              c1, c2 = st.columns(2)
-              with c1:
-                st.markdown("Status Atual")
-                st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
-              with c2:
-                recebido_por = st.text_input("Retirado por", value="", key=f"rec_por_{reg[0]}")
+            c1, c2 = st.columns(2)
+            with c1:
+              st.markdown("Status Atual")
+              st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
+            with c2:
+              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{reg[0]}")
 
-              liberar = st.form_submit_button("🚀 Concluir Retirada")
-              if liberar:
-                novo_status = "Exame retirado"
-                d_entrega = datetime.now().strftime("%d/%m/%Y")
-                
-                cursor.execute("""
-                              UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                          """, (novo_status, d_entrega, recebido_por, reg[0]))
-                conn.commit()
-                st.success("✅ Exame atualizado com sucesso!")
-                st.rerun()
+            if st.button("🚀 Concluir Retirada", key=f"btn_liberar_{reg[0]}"):
+              novo_status = "Exame retirado"
+              d_entrega = datetime.now().strftime("%d/%m/%Y")
+              
+              cursor.execute("""
+                            UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
+                        """, (novo_status, d_entrega, recebido_por_input, reg[0]))
+              conn.commit()
+              st.success("✅ Exame concluído com sucesso! O botão de impressão foi liberado abaixo.")
+              st.rerun()
     else:
       st.warning("Nenhum exame encontrado.")
 

@@ -19,7 +19,7 @@ st.markdown("""
         .main { background-color: #f8fafc; }
         
         /* Caixa unificada do cabeçalho */
-        .header-container {
+        .header-box-unica {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
             padding: 16px 24px;
             border-radius: 12px;
@@ -31,14 +31,14 @@ st.markdown("""
             align-items: center;
         }
         
-        .header-title-main {
+        .header-title {
             font-size: 20px !important;
             font-weight: 700 !important;
             margin: 0 !important;
             color: #ffffff !important;
         }
         
-        .header-subtitle-main {
+        .header-subtitle {
             font-size: 13px !important;
             color: #e0f2fe !important;
             margin: 2px 0 0 0 !important;
@@ -48,20 +48,20 @@ st.markdown("""
             font-size: 13px !important;
             color: #f1f5f9 !important;
             text-align: right;
-            margin: 0 0 6px 0 !important;
+            margin: 0;
+            font-weight: 600;
         }
 
-        /* Estilo compacto para o botão de sair */
+        /* Botão de sair compacto e alinhado */
         div[data-testid="stButton"] button {
             background-color: #dc2626 !important;
             color: white !important;
             font-weight: 600 !important;
             border-radius: 6px !important;
-            padding: 0.2rem 0.7rem !important;
+            padding: 0.3rem 0.8rem !important;
             font-size: 12px !important;
             border: none !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
-            width: auto !important;
         }
         div[data-testid="stButton"] button:hover { 
             background-color: #b91c1c !important; 
@@ -228,10 +228,10 @@ if "nome_usuario" not in st.session_state:
 
 if not st.session_state.autenticado:
   st.markdown("""
-        <div class="header-container" style="justify-content: center; text-align: center;">
+        <div class="header-box-unica" style="justify-content: center; text-align: center;">
             <div>
-                <p class="header-title-main">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle-main">Acesso Restrito ao Sistema de Controle de Exames</p>
+                <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
+                <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -325,18 +325,17 @@ def gerar_pdf_protocolo(dados):
   return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 4. INTERFACE PRINCIPAL DO SISTEMA (CABEÇALHO PERFEITO)
+# 4. INTERFACE PRINCIPAL DO SISTEMA (CABEÇALHO PERFEITO E UNIFICADO)
 # ==========================================
+st.markdown('<div class="header-box-unica">', unsafe_allow_html=True)
 col_h1, col_h2 = st.columns([7, 3])
 
 with col_h1:
   st.markdown(
       """
-        <div class="header-container">
-            <div>
-                <p class="header-title-main">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle-main">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
-            </div>
+        <div>
+            <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
+            <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
         </div>
     """,
       unsafe_allow_html=True,
@@ -345,21 +344,23 @@ with col_h1:
 with col_h2:
   st.markdown(
       f"""
-        <div class="header-container" style="flex-direction: column; align-items: flex-end; padding: 10px 20px;">
-            <p class="header-user-info">👤 <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
+        <p class="header-user-info" style="text-align: right; margin-bottom: 4px;">👤 <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
     """,
       unsafe_allow_html=True,
   )
-  if st.button("🚪 Sair do Sistema", key="btn_sair_sistema"):
-    registrar_log(
-        st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou"
-    )
-    st.session_state.autenticado = False
-    st.session_state.usuario_atual = None
-    st.session_state.perfil_atual = None
-    st.session_state.nome_usuario = None
-    st.rerun()
-  st.markdown("</div>", unsafe_allow_html=True)
+  col_btn1, col_btn2 = st.columns([1, 1.1])
+  with col_btn2:
+    if st.button("🚪 Sair do Sistema", key="btn_sair_sistema"):
+      registrar_log(
+          st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou"
+      )
+      st.session_state.autenticado = False
+      st.session_state.usuario_atual = None
+      st.session_state.perfil_atual = None
+      st.session_state.nome_usuario = None
+      st.rerun()
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # Abas dinâmicas baseadas no perfil
 if st.session_state.perfil_atual == "admin":

@@ -237,12 +237,10 @@ if "nome_usuario" not in st.session_state:
   st.session_state.nome_usuario = None
 
 if not st.session_state.autenticado:
-  # Layout centralizado e equilibrado para a tela de login
   col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
   with col_l2:
-    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_app_html=False if 'unsafe_app_html' in globals() else None)
+    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True)
     
-    # Bloco superior do login com logo centralizada e banner unificado
     if os.path.exists("logo_prefeitura.jpg"):
       col_img1, col_img2, col_img3 = st.columns([1, 1, 1])
       with col_img2:
@@ -572,7 +570,7 @@ if st.session_state.perfil_atual == "admin":
       with col_u2:
         novo_user_senha = st.text_input("Senha", type="password", key=f"u_sen_{uv}")
       with col_u3:
-        novo_user_nome = st.text_icon = st.text_input("Nome Completo", key=f"u_nom_{uv}")
+        novo_user_nome = st.text_input("Nome Completo", key=f"u_nom_{uv}")
       with col_u4:
         novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"], key=f"u_prf_{uv}")
 

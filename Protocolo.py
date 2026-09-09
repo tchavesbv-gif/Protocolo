@@ -197,8 +197,8 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🏠 Início / Atendimento", 
+# Reduzido para 3 abas principais (removida a aba inicial de boas-vindas)
+tab1, tab2, tab3 = st.tabs([
     "➕ Novo Protocolo",
     "📦 Entregar Exames",
     "⚙️ Relatórios e Manutenção"
@@ -207,23 +207,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
 
-# ABA 1: Início
+# ABA 1 (Antiga Aba 2): Novo Protocolo
 with tab1:
-  st.markdown("### 📋 Bem-vindo ao Sistema de Controle")
-  st.info("Utilize as abas acima para registrar novos exames ou gerenciar a entrega de resultados com emissão instantânea de comprovantes em PDF.")
-  
-  col_info1, col_info2 = st.columns(2)
-  with col_info1:
-    cursor.execute("SELECT COUNT(*) FROM exames WHERE status != 'Exame retirado'")
-    pendentes = cursor.fetchone()[0]
-    st.metric("Exames Pendentes / Prontos", pendentes)
-  with col_info2:
-    cursor.execute("SELECT COUNT(*) FROM exames WHERE status = 'Exame retirado'")
-    retirados = cursor.fetchone()[0]
-    st.metric("Exames Já Retirados", retirados)
-
-# ABA 2: Novo Protocolo
-with tab2:
   st.markdown("### 📝 Registrar Novo Exame Coletado")
 
   if "form_version" not in st.session_state:
@@ -263,8 +248,8 @@ with tab2:
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 3: Entregar Exames (Substituído expander por cartões estáticos para evitar fechamento)
-with tab3:
+# ABA 2 (Antiga Aba 3): Entregar Exames
+with tab2:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
   
   if "busca_termo" not in st.session_state:
@@ -291,7 +276,6 @@ with tab3:
         recebido_por_db = reg[8] or ''
         data_protocolo = reg[9] or 'N/D'
 
-        # Renderiza usando um layout limpo em cartão (sem colapsar)
         with st.container():
           st.markdown(f"""
             <div class="card-paciente">
@@ -357,8 +341,8 @@ with tab3:
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 
-# ABA 4: Relatórios e Manutenção
-with tab4:
+# ABA 3 (Antiga Aba 4): Relatórios e Manutenção
+with tab3:
   st.markdown("### 📊 Relatório Geral e Manutenção do Sistema")
   
   import pandas as pd

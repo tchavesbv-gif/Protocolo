@@ -97,6 +97,16 @@ st.markdown("""
         }
         div.stButton > button:hover { background-color: #0369a1; }
 
+        /* Estilo específico para o botão de sair no cabeçalho */
+        div[data-testid="column"] div.stButton > button.btn-logout {
+            background-color: #dc2626 !important;
+            padding: 0.3rem 0.8rem !important;
+            font-size: 13px !important;
+        }
+        div[data-testid="column"] div.stButton > button.btn-logout:hover {
+            background-color: #b91c1c !important;
+        }
+
         .stTabs [data-baseweb="tab-list"] { gap: 12px; }
         .stTabs [data-baseweb="tab"] {
             background-color: #ffffff;
@@ -299,31 +309,30 @@ def gerar_pdf_protocolo(dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-st.markdown(f"""
-    <div class="header-container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
-            </div>
-            <div style="text-align: right; color: #e0f2fe; font-size: 14px;">
+col_h1, col_h2 = st.columns([3, 1])
+with col_h1:
+  st.markdown(f"""
+        <div class="header-container" style="margin-bottom: 0px;">
+            <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
+            <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
+            <div style="margin-top: 10px; color: #e0f2fe; font-size: 14px;">
                 👤 Logado como: <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})
             </div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# Barra lateral para botão de Sair
-with st.sidebar:
-  st.write(f"**Usuário:** {st.session_state.nome_usuario}")
-  st.write(f"**Perfil:** {st.session_state.perfil_atual.upper()}")
-  if st.button("🚪 Sair / Desconectar"):
+with col_h2:
+  # Espaçamento estético para alinhar com o topo do container
+  st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+  if st.button("🚪 Sair do Sistema", key="btn_logout_topo", use_container_width=True):
     registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
     st.session_state.autenticado = False
     st.session_state.usuario_atual = None
     st.session_state.perfil_atual = None
     st.session_state.nome_usuario = None
     st.rerun()
+
+st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
 # Abas dinâmicas baseadas no perfil
 if st.session_state.perfil_atual == "admin":

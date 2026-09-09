@@ -28,7 +28,7 @@ st.markdown("""
         .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        label, .stTextInput label {
+        label, .stTextInput label, .stSelectbox label {
             font-size: 17px !important;
             font-weight: 700 !important;
             color: #1e3a8a !important;
@@ -492,7 +492,46 @@ with tab3:
 # ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":
   with tab4:
-    st.markdown("### ⚙️ Ferramentas de Manutenção, Segurança e Auditoria")
+    st.markdown("### ⚙️ Gerenciamento de Usuários do Sistema")
+    
+    with st.form("form_cadastrar_usuario_admin"):
+      st.markdown("**Cadastrar Novo Usuário (Atendente ou Admin)**")
+      col_u1, col_u2, col_u3, col_u4 = st.columns(4)
+      with col_u1:
+        novo_user_log = st.text_input("Nome de Usuário (Login)")
+      with col_u2:
+        novo_user_senha = st.text_input("Senha", type="password")
+      with col_u3:
+        novo_user_nome = st.text_input("Nome Completo")
+      with col_u4:
+        novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"])
+      
+      btn_salvar_novo_user = st.form_submit_button("➕ Criar Novo Usuário")
+      if btn_salvar_novo_user:
+        if novo_user_log and novo_user_senha and novo_user_nome:
+          try:
+            cursor.execute("""
+                          INSERT INTO usuarios (username, senha, nome_completo, perfil)
+                          VALUES (?, ?, ?, ?)
+                      """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
+            conn.commit()
+            registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
+            st.success(f"Usuário **{novo_user_log.strip()}** cadastrado com sucesso!")
+            st.rerun()
+          except sqlite3.IntegrityError:
+            st.error("Este nome de usuário já existe no sistema.")
+          except Exception as e:
+            st.error(f"Erro: {e}")
+        else:
+          st.warning("Preencha todos os campos do novo usuário.")
+
+    st.markdown("---")
+    st.markdown("### 📋 Usuários Cadastrados no Sistema")
+    df_usuarios = pd.read_sql("SELECT id, username, nome_completo, perfil FROM usuarios", conn)
+    st.dataframe(df_usuarios, use_container_width=True)
+
+    st.markdown("---")
+    st.markdown("### 🛠️ Ferramentas de Manutenção e Segurança")
     col_maint1, col_maint2, col_maint3 = st.columns(3)
     
     with col_maint1:

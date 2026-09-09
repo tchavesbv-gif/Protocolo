@@ -34,7 +34,9 @@ st.markdown("""
             color: #1e3a8a !important;
         }
 
-        /* FORÇA FUNDO BRANCO SÓLIDO E BORDA AZUL ESCURO NOS INPUTS */
+        /* FORÇA FUNDO BRANCO E BORDA AZUL ESCURO VISÍVEL NOS CAMPOS */
+        .stTextInput > div > div, 
+        .stDateInput > div > div,
         div[data-baseweb="input"], 
         div[data-baseweb="base-input"] {
             background-color: #ffffff !important;
@@ -43,13 +45,7 @@ st.markdown("""
             border-radius: 8px !important;
         }
 
-        /* Garante que o container interno preencha em branco */
-        div[data-baseweb="input"] > div {
-            background-color: #ffffff !important;
-            background: #ffffff !important;
-        }
-
-        /* Estilo da fonte digitada */
+        /* Estilo do texto digitado */
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             font-size: 17px !important;

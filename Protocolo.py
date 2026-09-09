@@ -27,34 +27,34 @@ st.markdown("""
         .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        /* Aumento de fonte nos rótulos dos campos */
-        div[data-baseweb="base-input"] > label, 
-        .stTextInput label, 
-        .stDateInput label {
-            font-size: 16px !important;
-            font-weight: 600 !important;
+        /* Aumento e destaque dos rótulos (labels) dos inputs */
+        label.st-bp, label[data-baseweb="label"], .stTextInput label, .stDateInput label {
+            font-size: 17px !important;
+            font-weight: 700 !important;
             color: #1e3a8a !important;
         }
 
-        /* Campos de texto e data com fundo branco sólido e borda azul bem destacada */
-        div[data-testid="stTextInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] div[data-baseweb="input"],
-        div[data-baseweb="base-input"] {
-            background-color: #ffffff !important;
-            background: #ffffff !important;
-            border-radius: 8px !important;
-            border: 2px solid #0284c7 !important;
-            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.15) !important;
-        }
-        
-        div[data-testid="stTextInput"] input,
-        div[data-testid="stDateInput"] input {
+        /* Força fundo branco opaco e borda azul forte em caixas de texto e data */
+        input, textarea, div[data-baseweb="input"], div[data-baseweb="base-input"] {
             background-color: #ffffff !important;
             background: #ffffff !important;
             color: #0f172a !important;
-            font-size: 16px !important;
+        }
+
+        div[data-testid="stTextInput"] div[data-baseweb="input"],
+        div[data-testid="stDateInput"] div[data-baseweb="input"] {
+            background-color: #ffffff !important;
+            border: 2.5px solid #0284c7 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2) !important;
+        }
+
+        /* Tamanho da fonte digitada dentro dos inputs */
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stDateInput"] input {
+            font-size: 17px !important;
             font-weight: 600 !important;
-            padding: 10px 14px !important;
+            color: #0f172a !important;
         }
 
         .status-badge-verde {
@@ -92,11 +92,12 @@ st.markdown("""
         div.stButton > button {
             background-color: #0284c7;
             color: white;
-            font-weight: 600;
+            font-weight: 700;
             border-radius: 8px;
-            padding: 0.5rem 1rem;
-            font-size: 15px;
+            padding: 0.6rem 1.2rem;
+            font-size: 16px;
             border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         div.stButton > button:hover { background-color: #0369a1; }
 
@@ -105,10 +106,10 @@ st.markdown("""
             background-color: #ffffff;
             border-radius: 8px 8px 0px 0px;
             padding: 10px 20px;
-            font-weight: 600;
+            font-weight: 700;
             color: #475569;
             border: 1px solid #e2e8f0;
-            font-size: 15px;
+            font-size: 16px;
         }
         .stTabs [aria-selected="true"] {
             background-color: #0284c7 !important;

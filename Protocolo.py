@@ -217,7 +217,7 @@ def modal_novo_protocolo():
           cursor.execute("""
                         INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Enviado ao Lab", responsavel_cadastro))
+                    """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", responsavel_cadastro))
           conn.commit()
           st.success(f"🎉 Registro salvo! Protocolo: **{num_protocolo}**")
           st.session_state["mostrar_modal_cadastro"] = False
@@ -237,11 +237,15 @@ def modal_entregar_exames():
 
     if registros:
       for reg in registros:
-        # Exibição enxuta direto no expansor
         with st.expander(f"📌 {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           with st.form(f"form_update_{reg[0]}"):
-            lista_opcoes_status = ["Enviado ao Lab", "Pronto na Unidade", "Entregue"]
-            status_salvo = reg[5] if reg[5] in lista_opcoes_status else "Enviado ao Lab"
+            lista_opcoes_status = ["Pronto para entrega", "Exame retirado"]
+            
+            # Normalizar status antigos caso existam no banco
+            status_salvo = reg[5]
+            if status_salvo not in lista_opcoes_status:
+              status_salvo = "Pronto para entrega"
+              
             idx_status_atual = lista_opcoes_status.index(status_salvo)
 
             c1, c2 = st.columns(2)
@@ -252,7 +256,7 @@ def modal_entregar_exames():
 
             atualizar = st.form_submit_button("💾 Salvar Alteração")
             if atualizar:
-              d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Entregue" else (reg[7] or "")
+              d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Exame retirado" else (reg[7] or "")
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                         """, (novo_status, d_entrega, recebido_por, reg[0]))
@@ -263,7 +267,7 @@ def modal_entregar_exames():
           cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
           status_atual_db = cursor.fetchone()
 
-          if status_atual_db and status_atual_db[0] == "Entregue":
+          if status_atual_db and status_atual_db[0] == "Exame retirado":
             dados_dict = {
                 "protocolo": reg[1],
                 "data_coleta": reg[2],

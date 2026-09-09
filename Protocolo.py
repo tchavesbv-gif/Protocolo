@@ -214,10 +214,12 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs([
+# 4 ABAS SEPARADAS
+tab1, tab2, tab3, tab4 = st.tabs([
     "➕ Novo Protocolo",
     "📦 Entregar Exames",
-    "⚙️ Relatórios e Manutenção"
+    "📊 Relatórios",
+    "⚙️ Manutenção"
 ])
 
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -357,12 +359,23 @@ with tab2:
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 
-# ABA 3: Relatórios e Manutenção
+# ABA 3: Relatórios
 with tab3:
-  st.markdown("### ⚙️ Backup, Segurança e Ferramentas")
+  st.markdown("### 📊 Relatório Geral do Sistema")
+  
+  import pandas as pd
+  df = pd.read_sql("SELECT * FROM exames", conn)
+  st.dataframe(df, use_container_width=True)
+  csv = df.to_csv(index=False).encode("utf-8")
+  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
+
+# ABA 4: Manutenção
+with tab4:
+  st.markdown("### ⚙️ Ferramentas de Manutenção e Segurança")
   col_maint1, col_maint2, col_maint3 = st.columns(3)
   
   with col_maint1:
+    st.markdown("**Backup do Banco**")
     try:
       with open(DB_NAME, "rb") as f:
         db_bytes = f.read()
@@ -371,7 +384,8 @@ with tab3:
       st.error(f"Erro: {e}")
 
   with col_maint2:
-    arquivo_backup = st.file_uploader("Restaurar Banco (.db)", type=["db"])
+    st.markdown("**Restaurar Banco**")
+    arquivo_backup = st.file_uploader("Selecione o arquivo .db", type=["db"])
     if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
       with open(DB_NAME, "wb") as f:
         f.write(arquivo_backup.getbuffer())
@@ -388,12 +402,3 @@ with tab3:
         st.rerun()
       except Exception as e:
         st.error(f"Erro ao zerar banco: {e}")
-
-  st.markdown("---")
-  st.markdown("### 📊 Relatório Geral do Sistema")
-  
-  import pandas as pd
-  df = pd.read_sql("SELECT * FROM exames", conn)
-  st.dataframe(df, use_container_width=True)
-  csv = df.to_csv(index=False).encode("utf-8")
-  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")

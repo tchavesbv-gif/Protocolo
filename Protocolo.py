@@ -225,25 +225,20 @@ def modal_entregar_exames():
       for reg in registros:
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           with st.form(f"form_update_{reg[0]}"):
-            # Apenas as duas opções permitidas
-            lista_opcoes_status = ["Pronto para entrega", "Exame retirado"]
-            
-            status_salvo = reg[5]
-            if status_salvo not in lista_opcoes_status:
-              status_salvo = "Pronto para entrega"
-              
-            idx_status_atual = lista_opcoes_status.index(status_salvo)
+            status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
             c1, c2 = st.columns(2)
             with c1:
-              novo_status = st.selectbox("Status", lista_opcoes_status, index=idx_status_atual, key=f"status_sel_{reg[0]}")
+              # Exibe apenas o status atual como texto fixo (desativado)
+              st.text_input("Status Atual", value=status_atual, disabled=True, key=f"status_txt_{reg[0]}")
             with c2:
               valor_inicial_retirado = reg[8] if reg[8] is not None else ""
               recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
 
             liberar = st.form_submit_button("🚀 Liberar Exame")
             if liberar:
-              d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Exame retirado" else (reg[7] or "")
+              novo_status = "Exame retirado"
+              d_entrega = datetime.now().strftime("%d/%m/%Y")
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                         """, (novo_status, d_entrega, recebido_por, reg[0]))

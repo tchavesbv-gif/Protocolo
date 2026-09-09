@@ -144,7 +144,7 @@ st.markdown("""
 # ==========================================
 # 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS
 # ==========================================
-DB_NAME = "secretaria_teixeiras_v2.db"
+DB_NAME = "secretaria_teixeiras_exames.db"
 
 def init_db():
   conn = sqlite3.connect(DB_NAME)
@@ -237,11 +237,10 @@ if "nome_usuario" not in st.session_state:
   st.session_state.nome_usuario = None
 
 if not st.session_state.autenticado:
-  # Cabeçalho da tela de login com suporte opcional à logo
   col_l_logo, col_l_texto = st.columns([1, 6])
   with col_l_logo:
-    if os.path.exists("logo_prefeitura.png"):
-      st.image("logo_prefeitura.png", width=100)
+    if os.path.exists("logo_prefeitura.jpg"):
+      st.image("logo_prefeitura.jpg", width=100)
   with col_l_texto:
     st.markdown("""
           <div class="header-box-unica" style="justify-content: center; text-align: left; margin-bottom: 0px;">
@@ -344,14 +343,13 @@ def gerar_pdf_protocolo(dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-# Layout do cabeçalho com colunas para acomodar a Logo + Título + Perfil do Usuário
 col_logo, col_h1, col_h2 = st.columns([1, 6, 2.5])
 
 with col_logo:
-  if os.path.exists("logo_prefeitura.png"):
-    st.image("logo_prefeitura.png", width=90)
+  if os.path.exists("logo_prefeitura.jpg"):
+    st.image("logo_prefeitura.jpg", width=90)
   else:
-    st.markdown("🏛️") # Ícone de segurança caso a imagem não esteja na pasta
+    st.markdown("🏛️")
 
 with col_h1:
   st.markdown("""

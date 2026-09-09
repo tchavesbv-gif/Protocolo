@@ -141,7 +141,7 @@ def gerar_pdf_protocolo(dados):
     pdf.set_text_color(0, 0, 0)
     campos = [
         ("Data Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-        ("Paciente:", dados["nome_paciente"], "Atendente:", dados["recebido_por"]),
+        ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
         ("Exames:", dados["tipo_exame"], "", "")
     ]
 
@@ -213,11 +213,10 @@ with tab1:
     retirados = cursor.fetchone()[0]
     st.metric("Exames Já Retirados", retirados)
 
-# ABA 2: Novo Protocolo (Com limpeza total garantida via session_state)
+# ABA 2: Novo Protocolo
 with tab2:
   st.markdown("### 📝 Registrar Novo Exame Coletado")
 
-  # Gerenciador de versão para limpar os inputs do formulário com segurança
   if "form_version" not in st.session_state:
     st.session_state.form_version = 0
 
@@ -247,7 +246,6 @@ with tab2:
                     """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", "", data_protocolo_str))
           conn.commit()
           
-          # Incrementa a versão para forçar o formulário a nascer totalmente limpo na próxima renderização
           st.session_state.form_version += 1
           st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
           st.rerun()
@@ -269,19 +267,19 @@ with tab3:
       st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
       for reg in registros:
         id_reg = reg[0]
-        retirada_feita_key = f"retirado_ok_{id_reg}"
 
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-          if status_atual == "Exame retirado" or st.session_state.get(retirada_feita_key, False):
+          # Valida diretamente pelo banco de dados se o status já é "Exame retirado"
+          if status_atual == "Exame retirado":
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
               st.markdown("Detalhes da Retirada")
-              nome_retirou = reg[8] if reg[8] else st.session_state.get(f"nome_ret_{id_reg}", "Não informado")
+              nome_retirou = reg[8] if reg[8] else "Não informado"
               data_retirada = reg[7] if reg[7] else datetime.now().strftime("%d/%m/%Y")
               st.markdown(f"""
                 <div class="info-retirada-box">
@@ -299,7 +297,7 @@ with tab3:
                 "nome_paciente": reg[3],
                 "tipo_exame": reg[4],
                 "data_entrega": reg[7] or datetime.now().strftime("%d/%m/%Y"),
-                "recebido_por": reg[8] or st.session_state.get(f"nome_ret_{id_reg}", "")
+                "recebido_por": reg[8] or ""
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
@@ -317,21 +315,23 @@ with tab3:
               st.markdown("Status Atual")
               st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
             with c2:
-              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{id_reg}")
+              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar o exame)", value="", key=f"rec_por_{id_reg}")
 
             if st.button("🚀 Concluir Retirada", key=f"btn_liberar_{id_reg}"):
-              novo_status = "Exame retirado"
-              d_entrega = datetime.now().strftime("%d/%m/%Y")
-              
-              cursor.execute("""
-                            UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                        """, (novo_status, d_entrega, recebido_por_input, id_reg))
-              conn.commit()
-
-              st.session_state[retirada_feita_key] = True
-              st.session_state[f"nome_ret_{id_reg}"] = recebido_por_input
-              
-              st.success("✅ Exame concluído com sucesso! O botão de impressão foi liberado logo abaixo na mesma tela.")
+              if recebido_por_input.strip():
+                novo_status = "Exame retirado"
+                d_entrega = datetime.now().strftime("%d/%m/%Y")
+                
+                # Salva o nome da pessoa que retirou corretamente na coluna recebido_por
+                cursor.execute("""
+                              UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
+                          """, (novo_status, d_entrega, recebido_por_input, id_reg))
+                conn.commit()
+                
+                st.success("✅ Exame concluído com sucesso!")
+                st.rerun()
+              else:
+                st.warning("Por favor, preencha o nome de quem está retirando o exame antes de concluir.")
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 

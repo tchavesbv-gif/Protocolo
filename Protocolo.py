@@ -254,11 +254,10 @@ with tab2:
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 3: Entregar Exames (Com persistência de estado para não fechar a tela)
+# ABA 3: Entregar Exames
 with tab3:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
   
-  # Usando session_state para manter o texto da busca gravado na tela
   if "busca_termo" not in st.session_state:
     st.session_state.busca_termo = ""
 
@@ -266,6 +265,7 @@ with tab3:
   st.session_state.busca_termo = busca_input
 
   if busca_input:
+    # Busca atualizada direto do banco para refletir alterações instantaneamente
     cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
     registros = cursor.fetchall()
 
@@ -274,9 +274,12 @@ with tab3:
       for reg in registros:
         id_reg = reg[0]
         status_atual = reg[5] if reg[5] else "Pronto para entrega"
+        nome_retirou_db = reg[8] if reg[8] else ""
+        data_entrega_db = reg[7] if reg[7] else ""
 
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{status_atual}]"):
           
+          # Se o exame já consta como retirado (seja agora ou anteriormente)
           if status_atual == "Exame retirado":
             c1, c2 = st.columns(2)
             with c1:
@@ -284,12 +287,10 @@ with tab3:
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
               st.markdown("Detalhes da Retirada")
-              nome_retirou = reg[8] if reg[8] else "Não informado"
-              data_retirada = reg[7] if reg[7] else datetime.now().strftime("%d/%m/%Y")
               st.markdown(f"""
                 <div class="info-retirada-box">
-                    👤 Retirado por: <b>{nome_retirou}</b><br>
-                    📅 Data da Retirada: <b>{data_retirada}</b>
+                    👤 Retirado por: <b>{nome_retirou_db}</b><br>
+                    📅 Data da Retirada: <b>{data_entrega_db}</b>
                 </div>
               """, unsafe_allow_html=True)
             
@@ -301,8 +302,8 @@ with tab3:
                 "data_coleta": reg[2],
                 "nome_paciente": reg[3],
                 "tipo_exame": reg[4],
-                "data_entrega": reg[7] or datetime.now().strftime("%d/%m/%Y"),
-                "recebido_por": reg[8] or ""
+                "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
+                "recebido_por": nome_retirou_db
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
@@ -329,10 +330,14 @@ with tab3:
                 
                 cursor.execute("""
                               UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                          """, (novo_status, d_entrega, recebido_por_input, id_reg))
+                          """, (novo_status, d_entrega, recebido_por_input.strip(), id_reg))
                 conn.commit()
                 
-                st.success("✅ Exame concluído com sucesso!")
+                st.success("✅ Exame concluído com sucesso! O comprovante já está disponível abaixo.")
+                # Força a atualização local das variáveis do loop para redesenhar a tela aberta sem fechar o expander
+                status_atual = novo_status
+                nome_retirou_db = recebido_por_input.strip()
+                data_entrega_db = d_entrega
                 st.rerun()
               else:
                 st.warning("Por favor, preencha o nome de quem está retirando o exame antes de concluir.")

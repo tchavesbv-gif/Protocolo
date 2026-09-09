@@ -359,16 +359,7 @@ with tab2:
 
 # ABA 3: Relatórios e Manutenção
 with tab3:
-  st.markdown("### 📊 Relatório Geral e Manutenção do Sistema")
-  
-  import pandas as pd
-  df = pd.read_sql("SELECT * FROM exames", conn)
-  st.dataframe(df, use_container_width=True)
-  csv = df.to_csv(index=False).encode("utf-8")
-  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
-
-  st.markdown("---")
-  st.markdown("### ⚙️ Backup e Segurança")
+  st.markdown("### ⚙️ Backup, Segurança e Ferramentas")
   col_maint1, col_maint2, col_maint3 = st.columns(3)
   
   with col_maint1:
@@ -397,3 +388,12 @@ with tab3:
         st.rerun()
       except Exception as e:
         st.error(f"Erro ao zerar banco: {e}")
+
+  st.markdown("---")
+  st.markdown("### 📊 Relatório Geral do Sistema")
+  
+  import pandas as pd
+  df = pd.read_sql("SELECT * FROM exames", conn)
+  st.dataframe(df, use_container_width=True)
+  csv = df.to_csv(index=False).encode("utf-8")
+  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")

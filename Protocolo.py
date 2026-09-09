@@ -41,14 +41,31 @@ st.markdown("""
             padding: 8px 12px !important;
             font-weight: 500;
         }
-        
-        /* Realce para campos desativados (Status Atual) */
-        div[data-testid="stTextInput"] input:disabled {
-            background-color: #e0f2fe !important;
-            color: #0369a1 !important;
-            font-weight: 700 !important;
-            border: 2px solid #38bdf8 !important;
-            -webkit-text-fill-color: #0369a1 !important;
+
+        /* Botão visual estilizado para o Status Atual */
+        .status-badge-verde {
+            background-color: #10b981;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: block;
+            margin-top: 26px;
+        }
+        .status-badge-cinza {
+            background-color: #64748b;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: block;
+            margin-top: 26px;
         }
 
         div.stButton > button {
@@ -239,12 +256,16 @@ def modal_entregar_exames():
 
             c1, c2 = st.columns(2)
             with c1:
-              st.text_input("Status Atual", value=status_atual, disabled=True, key=f"status_txt_{reg[0]}")
+              st.markdown("Status Atual")
+              if status_atual == "Pronto para entrega":
+                st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
+              else:
+                st.markdown('<div class="status-badge-cinza">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
               valor_inicial_retirado = reg[8] if reg[8] is not None else ""
               recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
 
-            liberar = st.form_submit_button("🚀 Liberar Exame")
+            liberar = st.form_submit_button("🚀 Liberar Exame e Gerar PDF")
             if liberar:
               novo_status = "Exame retirado"
               d_entrega = datetime.now().strftime("%d/%m/%Y")
@@ -255,6 +276,7 @@ def modal_entregar_exames():
               st.success("✅ Exame atualizado com sucesso!")
               st.rerun()
 
+          # Verifica o status atualizado no banco para exibir o PDF imediatamente se já estiver retirado
           cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
           status_atual_db = cursor.fetchone()
 
@@ -269,7 +291,16 @@ def modal_entregar_exames():
             }
             pdf_bytes = gerar_pdf_protocolo(dados_dict)
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:8px 14px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:5px;">🖨️ Imprimir Comprovante de Entrega (PDF)</a>'
+            
+            st.markdown("---")
+            st.markdown("### 📄 Comprovante Pronto para Impressão:")
+            href = f'''
+                <a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" 
+                   style="display:block; text-align:center; padding:12px 20px; background-color:#10b981; color:white; 
+                   text-decoration:none; border-radius:8px; font-weight:700; font-size:16px; margin-top:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                   🖨️ CLIQUE AQUI PARA IMPRIMIR O COMPROVANTE (PDF)
+                </a>
+            '''
             st.markdown(href, unsafe_allow_html=True)
     else:
       st.warning("Nenhum exame encontrado.")

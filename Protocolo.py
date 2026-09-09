@@ -225,6 +225,7 @@ def modal_entregar_exames():
       for reg in registros:
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           with st.form(f"form_update_{reg[0]}"):
+            # Apenas as duas opções permitidas
             lista_opcoes_status = ["Pronto para entrega", "Exame retirado"]
             
             status_salvo = reg[5]

@@ -40,10 +40,16 @@ st.markdown("""
             color: #e0f2fe !important;
             margin: 4px 0 0 0 !important;
         }
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
         .header-user {
             font-size: 13px !important;
             color: #f1f5f9 !important;
-            margin-top: 8px !important;
+            text-align: right;
         }
 
         label, .stTextInput label, .stSelectbox label {
@@ -108,12 +114,20 @@ st.markdown("""
             color: white;
             font-weight: 700;
             border-radius: 8px;
-            padding: 0.6rem 1.2rem;
-            font-size: 16px;
+            padding: 0.5rem 1.2rem;
+            font-size: 15px;
             border: none;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         div.stButton > button:hover { background-color: #0369a1; }
+
+        /* Botão específico de Sair dentro do header */
+        .btn-sair-container div.stButton > button {
+            background-color: #dc2626 !important;
+        }
+        .btn-sair-container div.stButton > button:hover {
+            background-color: #b91c1c !important;
+        }
 
         .stTabs [data-baseweb="tab-list"] { gap: 12px; }
         .stTabs [data-baseweb="tab"] {
@@ -317,39 +331,41 @@ def gerar_pdf_protocolo(dados):
 # 4. INTERFACE PRINCIPAL DO SISTEMA (CABEÇALHO UNIFICADO)
 # ==========================================
 
-# Usando colunas apenas para posicionar o botão interno ou lidando nativamente via HTML com Streamlit form,
-# mas para garantir o botão nativo perfeitamente alinhado na mesma caixa azul, criamos um form transparente para o botão:
-col_header_txt, col_header_btn = st.columns([5.2, 0.8])
+# Criamos uma única caixa estruturada em HTML Flexbox contendo o título à esquerda e o bloco direito (status + botão)
+col_header_main = st.container()
 
-with col_header_txt:
+with col_header_main:
+  # Renderizamos o container principal azul
   st.markdown(f"""
-        <div class="header-box" style="margin-bottom: 0px;">
+        <div class="header-box">
             <div class="header-content">
                 <h1>🏥 Secretaria Municipal de Saúde de Teixeiras</h1>
                 <p>Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
+            </div>
+            <div class="header-right">
                 <div class="header-user">👤 Logado como: <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-with col_header_btn:
-  # Caixa invisível alinhando o botão exatamente na altura do bloco azul
-  st.markdown(
-      "<div style='height: 22px;'></div>", unsafe_allow_html=True
-  )  # Ajuste fino vertical
-  if st.button("🚪 Sair", key="btn_sair_sistema", use_container_width=True):
-    registrar_log(
-        st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou"
-    )
+  # Para garantir interatividade nativa do Streamlit sem corromper o layout flexbox do CSS, 
+  # posicionamos o botão de sair logo abaixo alinhado à direita por meio de colunas auxiliares se necessário,
+  # ou injetamos na mesma linha usando CSS absoluto. 
+  # Uma abordagem mais limpa no Streamlit é colocar o botão de logout logo abaixo usando colunas flutuantes à direita:
+
+col_espaco, col_btn_sair = st.columns([8.2, 1.8])
+with col_btn_sair:
+  st.markdown('<div class="btn-sair-container">', unsafe_allow_html=True)
+  if st.button("🚪 Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
+    registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
     st.session_state.autenticado = False
     st.session_state.usuario_atual = None
     st.session_state.perfil_atual = None
     st.session_state.nome_usuario = None
     st.rerun()
+  st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown(
-    "<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True
-)
+st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # Abas dinâmicas baseadas no perfil
 if st.session_state.perfil_atual == "admin":

@@ -27,20 +27,34 @@ st.markdown("""
         .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        /* Estilo unificado para inputs de texto e data */
+        /* Aumento de fonte nos rótulos dos campos */
+        div[data-baseweb="base-input"] > label, 
+        .stTextInput label, 
+        .stDateInput label {
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #1e3a8a !important;
+        }
+
+        /* Campos de texto e data com fundo branco sólido e borda azul bem destacada */
         div[data-testid="stTextInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] div[data-baseweb="input"] {
+        div[data-testid="stDateInput"] div[data-baseweb="input"],
+        div[data-baseweb="base-input"] {
             background-color: #ffffff !important;
+            background: #ffffff !important;
             border-radius: 8px !important;
             border: 2px solid #0284c7 !important;
+            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.15) !important;
         }
         
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             background-color: #ffffff !important;
-            color: #1e293b !important;
-            padding: 8px 12px !important;
-            font-weight: 500;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            padding: 10px 14px !important;
         }
 
         .status-badge-verde {
@@ -80,8 +94,8 @@ st.markdown("""
             color: white;
             font-weight: 600;
             border-radius: 8px;
-            padding: 0.4rem 0.8rem;
-            font-size: 14px;
+            padding: 0.5rem 1rem;
+            font-size: 15px;
             border: none;
         }
         div.stButton > button:hover { background-color: #0369a1; }
@@ -94,6 +108,7 @@ st.markdown("""
             font-weight: 600;
             color: #475569;
             border: 1px solid #e2e8f0;
+            font-size: 15px;
         }
         .stTabs [aria-selected="true"] {
             background-color: #0284c7 !important;

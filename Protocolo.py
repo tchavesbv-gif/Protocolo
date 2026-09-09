@@ -62,7 +62,7 @@ st.markdown("""
             box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25) !important;
         }
 
-        /* Botões Gerais e Ajuste do Botão Novo Protocolo */
+        /* Botões Gerais */
         div.stButton > button {
             background-color: #0284c7;
             color: white;
@@ -112,7 +112,6 @@ def init_db():
     cursor.execute("PRAGMA table_info(exames)")
     colunas = [col[1] for col in cursor.fetchall()]
 
-    # Migração automática se a estrutura for antiga
     if "cpf" in colunas or "cns" in colunas:
       cursor.execute("""
             CREATE TABLE IF NOT EXISTS exames_novos (
@@ -140,7 +139,6 @@ def init_db():
       cursor.execute("ALTER TABLE exames_novos RENAME TO exames")
       conn.commit()
     else:
-      # Garante que a coluna recebido_por exista
       if "recebido_por" not in colunas:
         cursor.execute("ALTER TABLE exames ADD COLUMN recebido_por TEXT")
         conn.commit()
@@ -235,9 +233,9 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4 = st.tabs([
+# Abas reduzidas (removida a aba de Consultar antiga)
+tab1, tab2, tab3 = st.tabs([
     "🏠 Início / Atendimento", 
-    "🔍 Consultar e Atualizar", 
     "📊 Relatório Geral",
     "⚙️ Manutenção do Sistema"
 ])
@@ -247,6 +245,9 @@ cursor = conn.cursor()
 
 if "mostrar_modal_cadastro" not in st.session_state:
   st.session_state["mostrar_modal_cadastro"] = False
+
+if "mostrar_modal_entrega" not in st.session_state:
+  st.session_state["mostrar_modal_entrega"] = False
 
 @st.dialog("📝 Registrar Novo Exame Coletado", width="large")
 def modal_novo_protocolo():
@@ -289,148 +290,141 @@ def modal_novo_protocolo():
       else:
         st.warning("Preencha pelo menos o Nome Completo do Paciente.")
 
+@st.dialog("📦 Gerenciar e Entregar Exames", width="large")
+def modal_entregar_exames():
+  st.markdown("Pesquise pelo nome do paciente para atualizar o status e emitir o comprovante.")
+  busca_modal = st.text_input("🔎 Digite o Nome do Paciente:", key="busca_modal_input")
+
+  if busca_modal:
+    cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_modal}%",))
+    registros = cursor.fetchall()
+
+    if registros:
+      for reg in registros:
+        with st.expander(f"📌 Protocolo: {reg[1]} | Paciente: {reg[3]} | Status: [{reg[5]}]"):
+          col_a, col_b = st.columns(2)
+          with col_a:
+            st.write(f"**Tipo de Exame:** {reg[4]}")
+            st.write(f"**Responsável Criação:** {reg[8] or 'Não informado'}")
+          with col_b:
+            st.write(f"**Data Coleta:** {reg[2]}")
+            st.write(f"**Status Atual:** `{reg[5]}`")
+
+          edit_key = f"edit_mode_{reg[0]}"
+          if edit_key not in st.session_state:
+            st.session_state[edit_key] = False
+
+          col_btn_edit, _ = st.columns([1, 4])
+          with col_btn_edit:
+            if st.button("✏️ Editar Dados", key=f"btn_toggle_edit_{reg[0]}"):
+              st.session_state[edit_key] = not st.session_state[edit_key]
+              st.rerun()
+
+          if st.session_state[edit_key]:
+            st.markdown("---")
+            with st.form(f"form_edit_dados_{reg[0]}"):
+              e_col1, e_col2 = st.columns(2)
+              with e_col1:
+                novo_nome = st.text_input("Nome do Paciente", value=reg[3])
+                nova_data_coleta = st.text_input("Data da Coleta (DD/MM/AAAA)", value=reg[2])
+              with e_col2:
+                novo_tipo = st.text_input("Tipo de Exame", value=reg[4])
+                novo_resp = st.text_input("Responsável pelo Protocolo", value=reg[8] or "")
+              
+              col_salvar_edicao, col_cancelar_edicao = st.columns(2)
+              with col_salvar_edicao:
+                salvar_edicao = st.form_submit_button("💾 Salvar Alterações", width="stretch")
+              with col_cancelar_edicao:
+                cancelar_edicao = st.form_submit_button("❌ Cancelar", width="stretch")
+
+              if cancelar_edicao:
+                st.session_state[edit_key] = False
+                st.rerun()
+
+              if salvar_edicao:
+                cursor.execute("""
+                                UPDATE exames 
+                                SET nome_paciente = ?, data_coleta = ?, tipo_exame = ?, recebido_por = ? 
+                                WHERE id = ?
+                            """, (novo_nome, nova_data_coleta, novo_tipo, novo_resp, reg[0]))
+                conn.commit()
+                st.session_state[edit_key] = False
+                st.success("✅ Dados atualizados com sucesso!")
+                st.rerun()
+
+          st.markdown("---")
+          with st.form(f"form_update_{reg[0]}"):
+            lista_opcoes_status = ["Enviado ao Lab", "Pronto na Unidade", "Entregue"]
+            status_salvo = reg[5] if reg[5] in lista_opcoes_status else "Enviado ao Lab"
+            idx_status_atual = lista_opcoes_status.index(status_salvo)
+
+            novo_status = st.selectbox(
+                "Atualizar Status",
+                lista_opcoes_status,
+                index=idx_status_atual,
+                key=f"status_sel_{reg[0]}"
+            )
+            recebido_por = st.text_input("Nome de quem retirou/recebeu o exame", value=reg[8] or "", key=f"rec_por_{reg[0]}")
+
+            atualizar = st.form_submit_button("💾 Salvar Status")
+            if atualizar:
+              d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Entregue" else (reg[7] or "")
+              cursor.execute("""
+                            UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
+                        """, (novo_status, d_entrega, recebido_por, reg[0]))
+              conn.commit()
+              st.success("✅ Status atualizado com sucesso!")
+              st.rerun()
+
+          cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
+          status_atual_db = cursor.fetchone()
+
+          if status_atual_db and status_atual_db[0] == "Entregue":
+            dados_dict = {
+                "protocolo": reg[1],
+                "data_coleta": reg[2],
+                "nome_paciente": reg[3],
+                "tipo_exame": reg[4],
+                "recebido_por": status_atual_db[2] or "Atendente",
+                "data_entrega": status_atual_db[1] or datetime.now().strftime("%d/%m/%Y")
+            }
+            pdf_bytes = gerar_pdf_protocolo(dados_dict)
+
+            b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:10px 18px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:10px;box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Imprimir Comprovante Duas Vias (PDF)</a>'
+            st.markdown(href, unsafe_allow_html=True)
+    else:
+      st.warning("Nenhum exame encontrado com este nome.")
+
+  if st.button("❌ Fechar Janela de Entregas", width="stretch"):
+    st.session_state["mostrar_modal_entrega"] = False
+    st.rerun()
+
 if st.session_state["mostrar_modal_cadastro"]:
   modal_novo_protocolo()
 
+if st.session_state["mostrar_modal_entrega"]:
+  modal_entregar_exames()
+
 with tab1:
-  st.markdown("### 📋 Painel de Atendimento Rápido")
-  
-  col_btn, col_busca = st.columns([0.8, 3.2])
-  
-  with col_btn:
-    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+  st.markdown("### 📋 Painel de Atendimento")
+  st.info("💡 Escolha uma das opções abaixo para iniciar o atendimento ao cidadão:")
+
+  col_b1, col_b2, col_vazio = st.columns([1.5, 1.5, 2])
+
+  with col_b1:
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     if st.button("➕ Novo Protocolo", width="stretch"):
       st.session_state["mostrar_modal_cadastro"] = True
       st.rerun()
-    
-  with col_busca:
-    termo_inicio = st.text_input("🔎 Pesquisa Rápida (Nome do Paciente ou Data da Coleta):", key="busca_inicio")
 
-  st.markdown("---")
-
-  if termo_inicio:
-    st.markdown("### 🔎 Resultados da Pesquisa Rápida")
-    query_ini = "SELECT * FROM exames WHERE nome_paciente LIKE ? OR data_coleta LIKE ? ORDER BY id DESC"
-    cursor.execute(query_ini, (f"%{termo_inicio}%", f"%{termo_inicio}%"))
-    resultados_ini = cursor.fetchall()
-
-    if resultados_ini:
-      for reg in resultados_ini:
-        st.info(f"**Protocolo:** {reg[1]} | **Paciente:** {reg[3]} | **Data Coleta:** {reg[2]} | **Exame:** {reg[4]} | **Responsável:** {reg[8] or 'Não informado'} | **Status:** `{reg[5]}`")
-    else:
-      st.warning("Nenhum exame encontrado com os dados informados.")
-  else:
-    st.info("💡 Utilize o botão **'+ Novo Protocolo'** acima para registrar um atendimento ou utilize a barra de pesquisa para localizar exames rapidamente.")
+  with col_b2:
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    if st.button("📦 Entregar Exames", width="stretch"):
+      st.session_state["mostrar_modal_entrega"] = True
+      st.rerun()
 
 with tab2:
-  st.markdown("### Consultar Exames e Gerar Comprovante")
-
-  busca = st.text_input("🔎 Pesquisar por Nome do Paciente", key="busca_geral")
-
-  if busca:
-    query = "SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC"
-    cursor.execute(query, (f"%{busca}%",))
-  else:
-    cursor.execute("SELECT * FROM exames ORDER BY id DESC LIMIT 20")
-
-  registros = cursor.fetchall()
-
-  for reg in registros:
-    with st.expander(f"📌 Protocolo: {reg[1]} | Paciente: {reg[3]} | Status: [{reg[5]}]"):
-      col_a, col_b = st.columns(2)
-      with col_a:
-        st.write(f"**Tipo de Exame:** {reg[4]}")
-        st.write(f"**Responsável pelo Protocolo:** {reg[8] or 'Não informado'}")
-      with col_b:
-        st.write(f"**Data Coleta:** {reg[2]}")
-        st.write(f"**Status Atual:** `{reg[5]}`")
-
-      edit_key = f"edit_mode_{reg[0]}"
-      if edit_key not in st.session_state:
-        st.session_state[edit_key] = False
-
-      col_btn_edit, _ = st.columns([1, 4])
-      with col_btn_edit:
-        if st.button("✏️ Editar Dados", key=f"btn_toggle_edit_{reg[0]}"):
-          st.session_state[edit_key] = not st.session_state[edit_key]
-          st.rerun()
-
-      if st.session_state[edit_key]:
-        st.markdown("---")
-        st.markdown("#### 📝 Editando Dados Cadastrais do Exame")
-        with st.form(f"form_edit_dados_{reg[0]}"):
-          e_col1, e_col2 = st.columns(2)
-          with e_col1:
-            novo_nome = st.text_input("Nome do Paciente", value=reg[3])
-            nova_data_coleta = st.text_input("Data da Coleta (DD/MM/AAAA)", value=reg[2])
-          with e_col2:
-            novo_tipo = st.text_input("Tipo de Exame", value=reg[4])
-            novo_resp = st.text_input("Responsável pelo Protocolo", value=reg[8] or "")
-          
-          col_salvar_edicao, col_cancelar_edicao = st.columns(2)
-          with col_salvar_edicao:
-            salvar_edicao = st.form_submit_button("💾 Salvar Alterações", width="stretch")
-          with col_cancelar_edicao:
-            cancelar_edicao = st.form_submit_button("❌ Cancelar", width="stretch")
-
-          if cancelar_edicao:
-            st.session_state[edit_key] = False
-            st.rerun()
-
-          if salvar_edicao:
-            cursor.execute("""
-                            UPDATE exames 
-                            SET nome_paciente = ?, data_coleta = ?, tipo_exame = ?, recebido_por = ? 
-                            WHERE id = ?
-                        """, (novo_nome, nova_data_coleta, novo_tipo, novo_resp, reg[0]))
-            conn.commit()
-            st.session_state[edit_key] = False
-            st.success("✅ Dados atualizados com sucesso!")
-            st.rerun()
-
-      st.markdown("---")
-      with st.form(f"form_update_{reg[0]}"):
-        lista_opcoes_status = ["Enviado ao Lab", "Pronto na Unidade", "Entregue"]
-        status_salvo = reg[5] if reg[5] in lista_opcoes_status else "Enviado ao Lab"
-        idx_status_atual = lista_opcoes_status.index(status_salvo)
-
-        novo_status = st.selectbox(
-            "Atualizar Status",
-            lista_opcoes_status,
-            index=idx_status_atual,
-            key=f"status_sel_{reg[0]}"
-        )
-        recebido_por = st.text_input("Nome de quem retirou/recebeu o exame", value=reg[8] or "", key=f"rec_por_{reg[0]}")
-
-        atualizar = st.form_submit_button("💾 Salvar Status")
-        if atualizar:
-          d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Entregue" else (reg[7] or "")
-          cursor.execute("""
-                        UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                    """, (novo_status, d_entrega, recebido_por, reg[0]))
-          conn.commit()
-          st.success("✅ Status atualizado com sucesso!")
-          st.rerun()
-
-      cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
-      status_atual_db = cursor.fetchone()
-
-      if status_atual_db and status_atual_db[0] == "Entregue":
-        dados_dict = {
-            "protocolo": reg[1],
-            "data_coleta": reg[2],
-            "nome_paciente": reg[3],
-            "tipo_exame": reg[4],
-            "recebido_por": status_atual_db[2] or "Atendente",
-            "data_entrega": status_atual_db[1] or datetime.now().strftime("%d/%m/%Y")
-        }
-        pdf_bytes = gerar_pdf_protocolo(dados_dict)
-
-        b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-        href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:10px 18px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:10px;box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Imprimir Comprovante Duas Vias (PDF)</a>'
-        st.markdown(href, unsafe_allow_html=True)
-
-with tab3:
   st.markdown("### Relatório Geral de Exames")
   import pandas as pd
 
@@ -445,14 +439,14 @@ with tab3:
       "csv",
   )
 
-with tab4:
+with tab3:
   st.markdown("### ⚙️ Manutenção do Sistema e Backup Externo")
   
   col_maint1, col_maint2 = st.columns(2)
 
   with col_maint1:
     st.markdown("#### 💾 1. Gerar Cópia de Segurança (Backup)")
-    st.info("Baixe o arquivo completo do banco de dados contendo todos os cadastros, protocolos e históricos para guardar em local seguro (pendrive ou nuvem).")
+    st.info("Baixe o arquivo completo do banco de dados contendo todos os cadastros, protocolos e históricos para guardar em local seguro.")
     
     try:
       with open("secretaria_teixeiras_exames.db", "rb") as f:
@@ -471,7 +465,7 @@ with tab4:
 
   with col_maint2:
     st.markdown("#### 🔄 2. Restaurar Sistema a partir de Backup")
-    st.warning("⚠️ **Atenção:** Enviar um arquivo de banco de dados (`.db`) antigo vai substituir os dados atuais pelos dados contidos no arquivo de backup enviado.")
+    st.warning("⚠️ **Atenção:** Enviar um arquivo de banco de dados (`.db`) antigo vai substituir os dados atuais pelos dados contidos no arquivo enviado.")
     
     arquivo_backup = st.file_uploader("Selecione o arquivo de backup (.db) para restaurar", type=["db"])
     

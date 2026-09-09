@@ -27,15 +27,18 @@ st.markdown("""
         .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        div[data-testid="stTextInput"] div[data-baseweb="input"] {
+        /* Estilo unificado para inputs de texto e data */
+        div[data-testid="stTextInput"] div[data-baseweb="input"],
+        div[data-testid="stDateInput"] div[data-baseweb="input"] {
             background-color: #ffffff !important;
             border-radius: 8px !important;
+            border: 2px solid #0284c7 !important;
         }
-        div[data-testid="stTextInput"] input {
+        
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stDateInput"] input {
             background-color: #ffffff !important;
             color: #1e293b !important;
-            border: 2px solid #0284c7 !important;
-            border-radius: 8px !important;
             padding: 8px 12px !important;
             font-weight: 500;
         }
@@ -197,7 +200,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Reduzido para 3 abas principais (removida a aba inicial de boas-vindas)
 tab1, tab2, tab3 = st.tabs([
     "➕ Novo Protocolo",
     "📦 Entregar Exames",
@@ -207,7 +209,7 @@ tab1, tab2, tab3 = st.tabs([
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
 
-# ABA 1 (Antiga Aba 2): Novo Protocolo
+# ABA 1: Novo Protocolo
 with tab1:
   st.markdown("### 📝 Registrar Novo Exame Coletado")
 
@@ -248,7 +250,7 @@ with tab1:
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-# ABA 2 (Antiga Aba 3): Entregar Exames
+# ABA 2: Entregar Exames
 with tab2:
   st.markdown("### 📦 Gerenciar e Entregar Exames")
   
@@ -341,7 +343,7 @@ with tab2:
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 
-# ABA 3 (Antiga Aba 4): Relatórios e Manutenção
+# ABA 3: Relatórios e Manutenção
 with tab3:
   st.markdown("### 📊 Relatório Geral e Manutenção do Sistema")
   

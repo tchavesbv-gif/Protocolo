@@ -28,6 +28,7 @@ st.markdown("""
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
         .header-content h1 {
             font-size: 24px !important;
@@ -50,21 +51,30 @@ st.markdown("""
             font-size: 13px !important;
             color: #f1f5f9 !important;
             text-align: right;
+            margin-bottom: 35px; /* Espaço para o botão flutuar abaixo do texto na mesma caixa */
         }
 
-        /* Botão estilizado dentro da caixa azul */
-        .header-right button {
+        /* Posiciona o botão nativo do Streamlit exatamente dentro da caixa azul à direita */
+        div.stButton-logout {
+            position: absolute;
+            right: 25px;
+            bottom: 15px;
+            z-index: 99;
+            width: 140px !important;
+        }
+
+        .header-right button, div.stButton-logout button {
             background-color: #dc2626 !important;
             color: white !important;
             font-weight: 700 !important;
             border-radius: 6px !important;
-            padding: 0.3rem 0.9rem !important;
+            padding: 0.3rem 0.8rem !important;
             font-size: 13px !important;
             border: none !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
             cursor: pointer;
         }
-        .header-right button:hover { 
+        .header-right button:hover, div.stButton-logout button:hover { 
             background-color: #b91c1c !important; 
         }
 
@@ -350,16 +360,16 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Pequena coluna discreta posicionada logo abaixo do cabeçalho azul, alinhada totalmente à direita
-col_vazio, col_btn = st.columns([8.2, 1.8])
-with col_btn:
-  if st.button("🚪 Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
-    registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
-    st.session_state.autenticado = False
-    st.session_state.usuario_atual = None
-    st.session_state.perfil_atual = None
-    st.session_state.nome_usuario = None
-    st.rerun()
+# Botão de Sair posicionado via classe CSS dentro da caixa azul superior
+st.markdown('<div class="stButton-logout">', unsafe_allow_html=True)
+if st.button("🚪 Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
+  registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
+  st.session_state.autenticado = False
+  st.session_state.usuario_atual = None
+  st.session_state.perfil_atual = None
+  st.session_state.nome_usuario = None
+  st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 

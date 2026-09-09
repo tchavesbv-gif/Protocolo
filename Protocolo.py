@@ -41,6 +41,16 @@ st.markdown("""
             padding: 8px 12px !important;
             font-weight: 500;
         }
+        
+        /* Realce para campos desativados (Status Atual) */
+        div[data-testid="stTextInput"] input:disabled {
+            background-color: #e0f2fe !important;
+            color: #0369a1 !important;
+            font-weight: 700 !important;
+            border: 2px solid #38bdf8 !important;
+            -webkit-text-fill-color: #0369a1 !important;
+        }
+
         div.stButton > button {
             background-color: #0284c7;
             color: white;
@@ -229,7 +239,6 @@ def modal_entregar_exames():
 
             c1, c2 = st.columns(2)
             with c1:
-              # Exibe apenas o status atual como texto fixo (desativado)
               st.text_input("Status Atual", value=status_atual, disabled=True, key=f"status_txt_{reg[0]}")
             with c2:
               valor_inicial_retirado = reg[8] if reg[8] is not None else ""

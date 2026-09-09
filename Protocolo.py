@@ -1,6 +1,7 @@
 from datetime import datetime
 import base64
 import io
+import os
 import sqlite3
 from fpdf import FPDF
 import streamlit as st
@@ -241,7 +242,6 @@ def modal_entregar_exames():
           with st.form(f"form_update_{reg[0]}"):
             lista_opcoes_status = ["Pronto para entrega", "Exame retirado"]
             
-            # Normalizar status antigos caso existam no banco
             status_salvo = reg[5]
             if status_salvo not in lista_opcoes_status:
               status_salvo = "Pronto para entrega"
@@ -315,7 +315,8 @@ with tab2:
 
 with tab3:
   st.markdown("### ⚙️ Manutenção do Sistema e Backup")
-  col_maint1, col_maint2 = st.columns(2)
+  col_maint1, col_maint2, col_maint3 = st.columns(3)
+  
   with col_maint1:
     try:
       with open("secretaria_teixeiras_exames.db", "rb") as f:
@@ -323,9 +324,22 @@ with tab3:
       st.download_button("📥 Baixar Backup (.db)", db_bytes, f"backup_{datetime.now().strftime('%Y-%m-%d')}.db", "application/octet-stream")
     except Exception as e:
       st.error(f"Erro: {e}")
+
   with col_maint2:
-    arquivo_backup = st.file_uploader("Restaurar Banco de Dados (.db)", type=["db"])
+    arquivo_backup = st.file_uploader("Restaurar Banco (.db)", type=["db"])
     if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
       with open("secretaria_teixeiras_exames.db", "wb") as f:
         f.write(arquivo_backup.getbuffer())
-      st.success("Restaurado com sucesso! Recarregue a página.")
+      st.success("Restaurado! Recarregue a página.")
+
+  with col_maint3:
+    st.markdown("⚠️ **Zona de Perigo**")
+    if st.button("🗑️ Zerar / Limpar Banco de Dados"):
+      try:
+        conn.close()
+        if os.path.exists("secretaria_teixeiras_exames.db"):
+          os.remove("secretaria_teixeiras_exames.db")
+        st.success("Banco de dados limpo e zerado com sucesso!")
+        st.rerun()
+      except Exception as e:
+        st.error(f"Erro ao zerar banco: {e}")

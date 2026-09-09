@@ -63,7 +63,6 @@ st.markdown("""
             color: #1e293b;
         }
 
-        /* Botão padrão */
         div.stButton > button {
             background-color: #0284c7;
             color: white;
@@ -247,18 +246,24 @@ def modal_entregar_exames():
 
     if registros:
       for reg in registros:
+        id_reg = reg[0]
+        # Chave no session_state para controlar se a retirada foi feita nesta sessão do modal
+        retirada_feita_key = f"retirado_ok_{id_reg}"
+
         with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-          if status_atual == "Exame retirado":
+          # Se já estava retirado no banco OU se acabou de clicar no botão agora pouco
+          if status_atual == "Exame retirado" or st.session_state.get(retirada_feita_key, False):
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
               st.markdown("Detalhes da Retirada")
-              nome_retirou = reg[8] if reg[8] else "Não informado"
-              data_retirada = reg[7] if reg[7] else "Não informada"
+              # Pega do banco ou temporário da session se acabou de salvar
+              nome_retirou = reg[8] if reg[8] else st.session_state.get(f"nome_ret_{id_reg}", "Não informado")
+              data_retirada = reg[7] if reg[7] else datetime.now().strftime("%d/%m/%Y")
               st.markdown(f"""
                 <div class="info-retirada-box">
                     👤 Retirado por: <b>{nome_retirou}</b><br>
@@ -268,23 +273,25 @@ def modal_entregar_exames():
             
             st.markdown("---")
             st.markdown("### 🖨️ Emissão de Comprovante")
+            
+            # Monta dados para o PDF
             dados_pdf = {
                 "protocolo": reg[1],
                 "data_coleta": reg[2],
                 "nome_paciente": reg[3],
                 "tipo_exame": reg[4],
-                "data_entrega": reg[7] or "",
-                "recebido_por": reg[8] or ""
+                "data_entrega": reg[7] or datetime.now().strftime("%d/%m/%Y"),
+                "recebido_por": reg[8] or st.session_state.get(f"nome_ret_{id_reg}", "")
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
-            # Botão de download estático e realçado
+            # Botão de download estático, destacado e seguro (sem rerun)
             st.download_button(
                 label="📄 CLIQUE AQUI PARA BAIXAR / IMPRIMIR COMPROVANTE (PDF)",
                 data=pdf_bytes,
                 file_name=f"comprovante_{reg[1]}.pdf",
                 mime="application/pdf",
-                key=f"dl_pdf_retirado_{reg[0]}"
+                key=f"dl_pdf_retirado_{id_reg}"
             )
 
           else:
@@ -293,18 +300,24 @@ def modal_entregar_exames():
               st.markdown("Status Atual")
               st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
             with c2:
-              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{reg[0]}")
+              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{id_reg}")
 
-            if st.button("🚀 Concluir Retirada", key=f"btn_liberar_{reg[0]}"):
+            if st.button("🚀 Concluir Retirada", key=f"btn_liberar_{id_reg}"):
               novo_status = "Exame retirado"
               d_entrega = datetime.now().strftime("%d/%m/%Y")
               
+              # Salva no Banco de Dados
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
-                        """, (novo_status, d_entrega, recebido_por_input, reg[0]))
+                        """, (novo_status, d_entrega, recebido_por_input, id_reg))
               conn.commit()
+
+              # Marca no session_state para atualizar a tela na hora SEM fechar o modal
+              st.session_state[retirada_feita_key] = True
+              st.session_state[f"nome_ret_{id_reg}"] = recebido_por_input
+              
               st.success("✅ Exame concluído com sucesso! O botão de impressão foi liberado abaixo.")
-              st.rerun()
+              st.rerun() # Atualiza apenas os componentes internos do modal com segurança
     else:
       st.warning("Nenhum exame encontrado.")
 

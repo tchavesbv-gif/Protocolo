@@ -15,7 +15,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-        .main { background-color: #f8fafc; }
+        .main { background-color: #f1f5f9; }
         .header-container {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
             padding: 25px 30px;
@@ -28,41 +28,40 @@ st.markdown("""
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
         /* Aumento e destaque dos rótulos (labels) dos inputs */
-        label.st-bp, label[data-baseweb="label"], .stTextInput label, .stDateInput label {
+        label, .stTextInput label, .stDateInput label {
             font-size: 17px !important;
             font-weight: 700 !important;
             color: #1e3a8a !important;
         }
 
-        /* Força fundo branco opaco e borda azul forte em caixas de texto e data */
-        input, textarea, div[data-baseweb="input"], div[data-baseweb="base-input"] {
+        /* FORÇA FUNDO BRANCO SÓLIDO E BORDA AZUL FORTE EM TODOS OS NÍVEIS DO INPUT */
+        div[data-baseweb="input"], 
+        div[data-baseweb="base-input"],
+        div[data-baseweb="input"] > div,
+        input[type="text"],
+        input[type="date"] {
             background-color: #ffffff !important;
             background: #ffffff !important;
-            color: #0f172a !important;
         }
 
+        /* Caixa externa do input com borda grossa e destaque */
         div[data-testid="stTextInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] input {
+        div[data-testid="stDateInput"] div[data-baseweb="input"] {
             background-color: #ffffff !important;
             background: #ffffff !important;
             border: 2.5px solid #0284c7 !important;
             border-radius: 8px !important;
-            box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2) !important;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
         }
 
-        /* Alvo específico para remover o fundo cinza interno do date_input */
-        div[data-baseweb="input"] > div {
-            background-color: #ffffff !important;
-        }
-
-        /* Tamanho da fonte digitada dentro dos inputs */
+        /* Texto digitado dentro dos inputs */
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             font-size: 17px !important;
             font-weight: 600 !important;
             color: #0f172a !important;
             background-color: #ffffff !important;
+            background: #ffffff !important;
         }
 
         .status-badge-verde {

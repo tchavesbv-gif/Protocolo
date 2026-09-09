@@ -179,7 +179,7 @@ def gerar_pdf_protocolo(dados):
   return pdf.output(dest="S").encode("latin1")
 
 # ==========================================
-# 3. INTERFACE VISUAL E MODAIS
+# 3. INTERFACE VISUAL E TELAS
 # ==========================================
 st.markdown("""
     <div class="header-container">
@@ -188,18 +188,35 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🏠 Início / Atendimento", 
-    "📊 Relatório Geral",
-    "⚙️ Manutenção do Sistema"
+    "➕ Novo Protocolo",
+    "📦 Entregar Exames",
+    "⚙️ Relatórios e Manutenção"
 ])
 
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
 
-@st.dialog("📝 Registrar Novo Exame Coletado", width="large")
-def modal_novo_protocolo():
-  with st.form("form_cadastro_modal"):
+# ABA 1: Início
+with tab1:
+  st.markdown("### 📋 Bem-vindo ao Sistema de Controle")
+  st.info("Utilize as abas acima para registrar novos exames ou gerenciar a entrega de resultados com emissão instantânea de comprovantes em PDF.")
+  
+  col_info1, col_info2 = st.columns(2)
+  with col_info1:
+    cursor.execute("SELECT COUNT(*) FROM exames WHERE status != 'Exame retirado'")
+    pendentes = cursor.fetchone()[0]
+    st.metric("Exames Pendentes / Prontos", pendentes)
+  with col_info2:
+    cursor.execute("SELECT COUNT(*) FROM exames WHERE status = 'Exame retirado'")
+    retirados = cursor.fetchone()[0]
+    st.metric("Exames Já Retirados", retirados)
+
+# ABA 2: Novo Protocolo (Direto na aba, sem fechar nada)
+with tab2:
+  st.markdown("### 📝 Registrar Novo Exame Coletado")
+  with st.form("form_cadastro_direto"):
     col1, col2 = st.columns(2)
     with col1:
       data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
@@ -209,14 +226,7 @@ def modal_novo_protocolo():
     tipo_exame = st.text_input("Tipo de Exame (ex: Hemograma, Preventivo...)")
     responsavel_cadastro = st.text_input("Responsável pelo Protocolo (Quem realizou o atendimento)")
 
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-      submitted = st.form_submit_button("💾 Salvar Registro de Exame")
-    with col_f2:
-      fechar = st.form_submit_button("❌ Fechar Janela")
-
-    if fechar:
-      st.rerun()
+    submitted = st.form_submit_button("💾 Salvar Registro de Exame")
 
     if submitted:
       if nome_paciente:
@@ -229,31 +239,31 @@ def modal_novo_protocolo():
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", "", data_protocolo_str))
           conn.commit()
-          st.success(f"🎉 Registro salvo! Protocolo: **{num_protocolo}**")
-          st.rerun()
+          st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
         except Exception as e:
           st.error(f"Erro ao salvar: {e}")
       else:
         st.warning("Preencha o Nome Completo do Paciente.")
 
-@st.dialog("📦 Gerenciar e Entregar Exames", width="large")
-def modal_entregar_exames():
-  busca_modal = st.text_input("🔎 Digite o Nome do Paciente:", key="busca_modal_input")
+# ABA 3: Entregar Exames (Totalmente na página principal, zero risco de fechar)
+with tab3:
+  st.markdown("### 📦 Gerenciar e Entregar Exames")
+  busca_input = st.text_input("🔎 Digite o Nome do Paciente para Buscar:", key="busca_aba_entrega")
 
-  if busca_modal:
-    cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_modal}%",))
+  if busca_input:
+    cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
     registros = cursor.fetchall()
 
     if registros:
+      st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
       for reg in registros:
         id_reg = reg[0]
-        # Chave no session_state para controlar se a retirada foi feita nesta sessão do modal
         retirada_feita_key = f"retirado_ok_{id_reg}"
 
-        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | {reg[1]} | {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
+        with st.expander(f"📌 Data: {reg[9] or 'N/D'} | Protocolo: {reg[1]} | Paciente: {reg[3]} | Exame: {reg[4]} | Status: [{reg[5]}]"):
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
-          # Se já estava retirado no banco OU se acabou de clicar no botão agora pouco
+          # Se já está retirado ou acabou de confirmar no botão do foguetinho
           if status_atual == "Exame retirado" or st.session_state.get(retirada_feita_key, False):
             c1, c2 = st.columns(2)
             with c1:
@@ -261,7 +271,6 @@ def modal_entregar_exames():
               st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with c2:
               st.markdown("Detalhes da Retirada")
-              # Pega do banco ou temporário da session se acabou de salvar
               nome_retirou = reg[8] if reg[8] else st.session_state.get(f"nome_ret_{id_reg}", "Não informado")
               data_retirada = reg[7] if reg[7] else datetime.now().strftime("%d/%m/%Y")
               st.markdown(f"""
@@ -274,7 +283,6 @@ def modal_entregar_exames():
             st.markdown("---")
             st.markdown("### 🖨️ Emissão de Comprovante")
             
-            # Monta dados para o PDF
             dados_pdf = {
                 "protocolo": reg[1],
                 "data_coleta": reg[2],
@@ -285,7 +293,7 @@ def modal_entregar_exames():
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
             
-            # Botão de download estático, destacado e seguro (sem rerun)
+            # Botão estático realçado de PDF
             st.download_button(
                 label="📄 CLIQUE AQUI PARA BAIXAR / IMPRIMIR COMPROVANTE (PDF)",
                 data=pdf_bytes,
@@ -306,44 +314,30 @@ def modal_entregar_exames():
               novo_status = "Exame retirado"
               d_entrega = datetime.now().strftime("%d/%m/%Y")
               
-              # Salva no Banco de Dados
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                         """, (novo_status, d_entrega, recebido_por_input, id_reg))
               conn.commit()
 
-              # Marca no session_state para atualizar a tela na hora SEM fechar o modal
               st.session_state[retirada_feita_key] = True
               st.session_state[f"nome_ret_{id_reg}"] = recebido_por_input
               
-              st.success("✅ Exame concluído com sucesso! O botão de impressão foi liberado abaixo.")
-              st.rerun() # Atualiza apenas os componentes internos do modal com segurança
+              st.success("✅ Exame concluído com sucesso! O botão de impressão foi liberado logo abaixo na mesma tela.")
     else:
-      st.warning("Nenhum exame encontrado.")
+      st.warning("Nenhum exame encontrado com este nome.")
 
-  if st.button("❌ Fechar Janela", key="fechar_modal_entrega"):
-    st.rerun()
-
-with tab1:
-  st.markdown("### 📋 Painel de Atendimento")
-  col_b1, col_b2, col_vazio = st.columns([1.5, 1.5, 2])
-  with col_b1:
-    if st.button("➕ Novo Protocolo"):
-      modal_novo_protocolo()
-  with col_b2:
-    if st.button("📦 Entregar Exames"):
-      modal_entregar_exames()
-
-with tab2:
-  st.markdown("### Relatório Geral de Exames")
+# ABA 4: Relatórios e Manutenção
+with tab4:
+  st.markdown("### 📊 Relatório Geral e Manutenção do Sistema")
+  
   import pandas as pd
   df = pd.read_sql("SELECT * FROM exames", conn)
   st.dataframe(df, use_container_width=True)
   csv = df.to_csv(index=False).encode("utf-8")
   st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 
-with tab3:
-  st.markdown("### ⚙️ Manutenção do Sistema e Backup")
+  st.markdown("---")
+  st.markdown("### ⚙️ Backup e Segurança")
   col_maint1, col_maint2, col_maint3 = st.columns(3)
   
   with col_maint1:
@@ -359,7 +353,7 @@ with tab3:
     if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
       with open(DB_NAME, "wb") as f:
         f.write(arquivo_backup.getbuffer())
-      st.success("Restaurado! Recarregue a página.")
+      st.success("Restaurado com sucesso! Recarregue a página.")
 
   with col_maint3:
     st.markdown("⚠️ **Zona de Perigo**")

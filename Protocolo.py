@@ -28,7 +28,7 @@ st.markdown("""
         .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
         .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
 
-        label, .stTextInput label, .stSelectbox label {
+        label, .stTextInput label {
             font-size: 17px !important;
             font-weight: 700 !important;
             color: #1e3a8a !important;
@@ -123,7 +123,6 @@ def init_db():
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   
-  # Tabela de exames
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,7 +140,6 @@ def init_db():
         )
     """)
   
-  # Tabela de logs do sistema
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs_sistema (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,7 +150,6 @@ def init_db():
         )
     """)
 
-  # Tabela de usuários do sistema
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,13 +160,18 @@ def init_db():
         )
     """)
 
-  # Criar usuário admin padrão caso a tabela esteja vazia
+  # Usuários padrão iniciais do sistema
   cursor.execute("SELECT COUNT(*) FROM usuarios")
   if cursor.fetchone()[0] == 0:
-    cursor.execute("""
+    usuarios_iniciais = [
+        ("admin", "123", "Administrador do Sistema", "admin"),
+        ("atendente1", "123", "Atendente Recepção 1", "atendente"),
+        ("atendente2", "123", "Atendente Recepção 2", "atendente")
+    ]
+    cursor.executemany("""
             INSERT INTO usuarios (username, senha, nome_completo, perfil)
             VALUES (?, ?, ?, ?)
-        """, ("admin", "123", "Administrador do Sistema", "admin"))
+        """, usuarios_iniciais)
 
   conn.commit()
   conn.close()
@@ -187,7 +189,7 @@ def registrar_log(usuario, acao, detalhes=""):
   conn.close()
 
 # ==========================================
-# 2. CONTROLE DE ACESSO (LOGIN E CADASTRO)
+# 2. CONTROLE DE ACESSO (LOGIN)
 # ==========================================
 if "autenticado" not in st.session_state:
   st.session_state.autenticado = False
@@ -197,8 +199,6 @@ if "perfil_atual" not in st.session_state:
   st.session_state.perfil_atual = None
 if "nome_usuario" not in st.session_state:
   st.session_state.nome_usuario = None
-if "mostrar_cadastro" not in st.session_state:
-  st.session_state.mostrar_cadastro = False
 
 if not st.session_state.autenticado:
   st.markdown("""
@@ -210,74 +210,29 @@ if not st.session_state.autenticado:
 
   col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
   with col_l2:
-    if not st.session_state.mostrar_cadastro:
-      st.markdown("### 🔐 Identificação do Usuário")
-      with st.form("form_login"):
-        user_input = st.text_input("Usuário")
-        senha_input = st.text_input("Senha", type="password")
-        btn_login = st.form_submit_button("Entrar no Sistema")
+    st.markdown("### 🔐 Identificação do Usuário")
+    with st.form("form_login"):
+      user_input = st.text_input("Usuário")
+      senha_input = st.text_input("Senha", type="password")
+      btn_login = st.form_submit_button("Entrar no Sistema")
 
-        if btn_login:
-          conn_l = sqlite3.connect(DB_NAME)
-          cursor_l = conn_l.cursor()
-          cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = ?", (user_input.strip(),))
-          res = cursor_l.fetchone()
-          conn_l.close()
+      if btn_login:
+        conn_l = sqlite3.connect(DB_NAME)
+        cursor_l = conn_l.cursor()
+        cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = ?", (user_input.strip(),))
+        res = cursor_l.fetchone()
+        conn_l.close()
 
-          if res and res[0] == senha_input:
-            st.session_state.autenticado = True
-            st.session_state.usuario_atual = user_input.strip()
-            st.session_state.nome_usuario = res[1]
-            st.session_state.perfil_atual = res[2]
-            registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
-            st.success("Login realizado com sucesso!")
-            st.rerun()
-          else:
-            st.error("Usuário ou senha incorretos.")
-
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("➕ Cadastrar Novo Usuário"):
-        st.session_state.mostrar_cadastro = True
-        st.rerun()
-    
-    else:
-      st.markdown("### 📝 Criar Nova Conta de Usuário")
-      with st.form("form_novo_usuario"):
-        novo_user = st.text_input("Definir Nome de Usuário (Login)")
-        novo_senha = st.text_input("Definir Senha", type="password")
-        novo_nome_completo = st.text_input("Nome Completo do Funcionário")
-        novo_perfil = st.selectbox("Perfil de Acesso", ["atendente", "admin"])
-        
-        col_cad1, col_cad2 = st.columns(2)
-        with col_cad1:
-          btn_salvar_novo = st.form_submit_button("💾 Salvar Usuário")
-        with col_cad2:
-          btn_voltar = st.form_submit_button("↩️ Voltar ao Login")
-
-        if btn_voltar:
-          st.session_state.mostrar_cadastro = False
+        if res and res[0] == senha_input:
+          st.session_state.autenticado = True
+          st.session_state.usuario_atual = user_input.strip()
+          st.session_state.nome_usuario = res[1]
+          st.session_state.perfil_atual = res[2]
+          registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
+          st.success("Login realizado com sucesso!")
           st.rerun()
-
-        if btn_salvar_novo:
-          if novo_user and novo_senha and novo_nome_completo:
-            try:
-              conn_c = sqlite3.connect(DB_NAME)
-              cursor_c = conn_c.cursor()
-              cursor_c.execute("""
-                            INSERT INTO usuarios (username, senha, nome_completo, perfil)
-                            VALUES (?, ?, ?, ?)
-                        """, (novo_user.strip(), novo_senha, novo_nome_completo.strip(), novo_perfil))
-              conn_c.commit()
-              conn_c.close()
-              
-              registrar_log(novo_user.strip(), "CRIACAO_USUARIO", f"Novo usuário criado com perfil {novo_perfil}")
-              st.success("Usuário cadastrado com sucesso! Volte para a tela de login.")
-            except sqlite3.IntegrityError:
-              st.error("Este nome de usuário já existe. Escolha outro.")
-            except Exception as e:
-              st.error(f"Erro ao cadastrar: {e}")
-          else:
-            st.warning("Preencha todos os campos obrigatórios.")
+        else:
+          st.error("Usuário ou senha incorretos.")
   st.stop()
 
 # ==========================================
@@ -368,7 +323,6 @@ with st.sidebar:
     st.session_state.usuario_atual = None
     st.session_state.perfil_atual = None
     st.session_state.nome_usuario = None
-    st.session_state.mostrar_cadastro = False
     st.rerun()
 
 # Abas dinâmicas baseadas no perfil

@@ -83,6 +83,9 @@ def init_db():
     if "recebido_por" not in colunas:
       cursor.execute("ALTER TABLE exames ADD COLUMN recebido_por TEXT")
       conn.commit()
+    if "data_protocolo" not in colunas:
+      cursor.execute("ALTER TABLE exames ADD COLUMN data_protocolo TEXT")
+      conn.commit()
   else:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
@@ -94,7 +97,8 @@ def init_db():
             status TEXT NOT NULL,
             data_chegada TEXT,
             data_entrega TEXT,
-            recebido_por TEXT
+            recebido_por TEXT,
+            data_protocolo TEXT
         )
     """)
     conn.commit()
@@ -212,13 +216,14 @@ def modal_novo_protocolo():
 
     if submitted:
       if nome_paciente:
-        num_protocolo = f"TX-{datetime.now().strftime('%Y')}-{datetime.now().strftime('%m%d%H%M%S')}"
+        num_protocolo = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
+        data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
         try:
           cursor.execute("""
-                        INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", responsavel_cadastro))
+                        INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por, data_protocolo)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (num_protocolo, data_coleta_str, nome_paciente, tipo_exame, "Pronto para entrega", "", data_protocolo_str))
           conn.commit()
           st.success(f"🎉 Registro salvo! Protocolo: **{num_protocolo}**")
           st.session_state["mostrar_modal_cadastro"] = False
@@ -252,16 +257,18 @@ def modal_entregar_exames():
             with c1:
               novo_status = st.selectbox("Status", lista_opcoes_status, index=idx_status_atual, key=f"status_sel_{reg[0]}")
             with c2:
-              recebido_por = st.text_input("Retirado por", value=reg[8] or "", key=f"rec_por_{reg[0]}")
+              # Campo em branco por padrão para preenchimento de quem retirou
+              valor_inicial_retirado = reg[8] if reg[8] is not None else ""
+              recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
 
-            atualizar = st.form_submit_button("💾 Salvar Alteração")
-            if atualizar:
+            liberar = st.form_submit_button("🚀 Liberar Exame")
+            if liberar:
               d_entrega = datetime.now().strftime("%d/%m/%Y") if novo_status == "Exame retirado" else (reg[7] or "")
               cursor.execute("""
                             UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ? WHERE id = ?
                         """, (novo_status, d_entrega, recebido_por, reg[0]))
               conn.commit()
-              st.success("✅ Atualizado!")
+              st.success("✅ Exame atualizado com sucesso!")
               st.rerun()
 
           cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
@@ -273,12 +280,12 @@ def modal_entregar_exames():
                 "data_coleta": reg[2],
                 "nome_paciente": reg[3],
                 "tipo_exame": reg[4],
-                "recebido_por": status_atual_db[2] or "Atendente",
+                "recebido_por": status_atual_db[2] or "Não informado",
                 "data_entrega": status_atual_db[1] or datetime.now().strftime("%d/%m/%Y")
             }
             pdf_bytes = gerar_pdf_protocolo(dados_dict)
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:8px 14px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:5px;">🖨️ Imprimir Comprovante (PDF)</a>'
+            href = f'<a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" style="display:inline-block;padding:8px 14px;background-color:#1e3a8a;color:white;text-decoration:none;border-radius:6px;font-weight:600;margin-top:5px;">🖨️ Imprimir Comprovante de Entrega (PDF)</a>'
             st.markdown(href, unsafe_allow_html=True)
     else:
       st.warning("Nenhum exame encontrado.")

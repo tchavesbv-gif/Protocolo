@@ -42,11 +42,18 @@ st.markdown("""
         }
 
         div[data-testid="stTextInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] div[data-baseweb="input"] {
+        div[data-testid="stDateInput"] div[data-baseweb="input"],
+        div[data-testid="stDateInput"] input {
             background-color: #ffffff !important;
+            background: #ffffff !important;
             border: 2.5px solid #0284c7 !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2) !important;
+        }
+
+        /* Alvo específico para remover o fundo cinza interno do date_input */
+        div[data-baseweb="input"] > div {
+            background-color: #ffffff !important;
         }
 
         /* Tamanho da fonte digitada dentro dos inputs */
@@ -55,6 +62,7 @@ st.markdown("""
             font-size: 17px !important;
             font-weight: 600 !important;
             color: #0f172a !important;
+            background-color: #ffffff !important;
         }
 
         .status-badge-verde {

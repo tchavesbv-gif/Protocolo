@@ -15,7 +15,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-        .main { background-color: #f1f5f9; }
+        .main { background-color: #f8fafc; }
         .header-container {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
             padding: 25px 30px;
@@ -34,27 +34,22 @@ st.markdown("""
             color: #1e3a8a !important;
         }
 
-        /* FORÇA FUNDO BRANCO SÓLIDO E BORDA AZUL FORTE EM TODOS OS NÍVEIS DO INPUT */
+        /* FORÇA FUNDO BRANCO SÓLIDO E BORDA AZUL ESCURO NOS INPUTS */
         div[data-baseweb="input"], 
-        div[data-baseweb="base-input"],
-        div[data-baseweb="input"] > div,
-        input[type="text"],
-        input[type="date"] {
+        div[data-baseweb="base-input"] {
             background-color: #ffffff !important;
             background: #ffffff !important;
-        }
-
-        /* Caixa externa do input com borda grossa e destaque */
-        div[data-testid="stTextInput"] div[data-baseweb="input"],
-        div[data-testid="stDateInput"] div[data-baseweb="input"] {
-            background-color: #ffffff !important;
-            background: #ffffff !important;
-            border: 2.5px solid #0284c7 !important;
+            border: 2px solid #1e3a8a !important;
             border-radius: 8px !important;
-            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
         }
 
-        /* Texto digitado dentro dos inputs */
+        /* Garante que o container interno preencha em branco */
+        div[data-baseweb="input"] > div {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+        }
+
+        /* Estilo da fonte digitada */
         div[data-testid="stTextInput"] input,
         div[data-testid="stDateInput"] input {
             font-size: 17px !important;

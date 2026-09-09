@@ -167,7 +167,6 @@ def init_db():
         )
     """)
   
-  # Garante compatibilidade caso o banco antigo já exista sem essas colunas
   cursor.execute("PRAGMA table_info(exames)")
   colunas_existentes = [col[1] for col in cursor.fetchall()]
   
@@ -238,15 +237,22 @@ if "nome_usuario" not in st.session_state:
   st.session_state.nome_usuario = None
 
 if not st.session_state.autenticado:
-  st.markdown("""
-        <div class="header-box-unica" style="justify-content: center; text-align: center;">
-            <div>
-                <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+  # Cabeçalho da tela de login com suporte opcional à logo
+  col_l_logo, col_l_texto = st.columns([1, 6])
+  with col_l_logo:
+    if os.path.exists("logo_prefeitura.png"):
+      st.image("logo_prefeitura.png", width=100)
+  with col_l_texto:
+    st.markdown("""
+          <div class="header-box-unica" style="justify-content: center; text-align: left; margin-bottom: 0px;">
+              <div>
+                  <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
+                  <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
+              </div>
+          </div>
+      """, unsafe_allow_html=True)
 
+  st.markdown("<br>", unsafe_allow_html=True)
   col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
   with col_l2:
     st.markdown("### 🔐 Identificação do Usuário")
@@ -338,36 +344,35 @@ def gerar_pdf_protocolo(dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-col_h1, col_h2 = st.columns([7, 3])
+# Layout do cabeçalho com colunas para acomodar a Logo + Título + Perfil do Usuário
+col_logo, col_h1, col_h2 = st.columns([1, 6, 2.5])
+
+with col_logo:
+  if os.path.exists("logo_prefeitura.png"):
+    st.image("logo_prefeitura.png", width=90)
+  else:
+    st.markdown("🏛️") # Ícone de segurança caso a imagem não esteja na pasta
 
 with col_h1:
-  st.markdown(
-      """
+  st.markdown("""
         <div class="header-box-unica" style="margin-bottom: 0px;">
             <div>
-                <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
+                <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
                 <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
             </div>
         </div>
-    """,
-      unsafe_allow_html=True,
-  )
+    """, unsafe_allow_html=True)
 
 with col_h2:
-  st.markdown(
-      f"""
-        <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 12px 24px;">
+  st.markdown(f"""
+        <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 16px 20px;">
             <p class="header-user-info">👤 <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
         </div>
-    """,
-      unsafe_allow_html=True,
-  )
+    """, unsafe_allow_html=True)
   col_dummy, col_b_sair = st.columns([1, 1.2])
   with col_b_sair:
     if st.button("🚪 Sair do Sistema", key="btn_sair_sistema"):
-      registrar_log(
-          st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou"
-      )
+      registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
       st.session_state.autenticado = False
       st.session_state.usuario_atual = None
       st.session_state.perfil_atual = None
@@ -377,18 +382,18 @@ with col_h2:
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
 if st.session_state.perfil_atual == "admin":
-  tab1, tab2, tab3, tab4 = st.tabs(
-      [
-          "➕ Novo Protocolo",
-          "📦 Entregar Exames",
-          "📊 Relatórios",
-          "⚙️ Manutenção & Logs",
-      ]
-  )
+  tab1, tab2, tab3, tab4 = st.tabs([
+      "➕ Novo Protocolo",
+      "📦 Entregar Exames",
+      "📊 Relatórios",
+      "⚙️ Manutenção & Logs"
+  ])
 else:
-  tab1, tab2, tab3 = st.tabs(
-      ["➕ Novo Protocolo", "📦 Entregar Exames", "📊 Relatórios"]
-  )
+  tab1, tab2, tab3 = st.tabs([
+      "➕ Novo Protocolo",
+      "📦 Entregar Exames",
+      "📊 Relatórios"
+  ])
 
 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 cursor = conn.cursor()
@@ -405,17 +410,11 @@ with tab1:
   with st.form(f"form_cadastro_direto_{v}", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
-      data_coleta_input = st.date_input(
-          "Data da Coleta", datetime.now(), format="DD/MM/YYYY"
-      )
+      data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
     with col2:
-      nome_paciente = st.text_input(
-          "Nome Completo do Paciente", key=f"val_nome_{v}"
-      )
+      nome_paciente = st.text_input("Nome Completo do Paciente", key=f"val_nome_{v}")
 
-    tipo_exame = st.text_input(
-        "Tipo de Exame (ex: Hemograma, Preventivo...)", key=f"val_tipo_{v}"
-    )
+    tipo_exame = st.text_input("Tipo de Exame (ex: Hemograma, Preventivo...)", key=f"val_tipo_{v}")
 
     submitted = st.form_submit_button("💾 Salvar Registro de Exame")
 
@@ -425,35 +424,25 @@ with tab1:
         data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
         data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
         try:
-          cursor.execute(
-              """
+          cursor.execute("""
                         INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por, data_protocolo, usuario_cadastro)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-              (
-                  num_protocolo,
-                  data_coleta_str,
-                  nome_paciente,
-                  tipo_exame,
-                  "Pronto para entrega",
-                  "",
-                  data_protocolo_str,
-                  st.session_state.nome_usuario,
-              ),
-          )
+                    """, (
+                        num_protocolo,
+                        data_coleta_str,
+                        nome_paciente,
+                        tipo_exame,
+                        "Pronto para entrega",
+                        "",
+                        data_protocolo_str,
+                        st.session_state.nome_usuario
+                    ))
           conn.commit()
 
-          registrar_log(
-              st.session_state.usuario_atual,
-              "NOVO_PROTOCOLO",
-              f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente}",
-          )
+          registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente}")
 
           st.session_state.form_version += 1
-          st.success(
-              f"🎉 Registro salvo com sucesso! Protocolo gerado:"
-              f" **{num_protocolo}**"
-          )
+          st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
           st.rerun()
         except Exception as e:
           st.error(f"Erro ao salvar: {e}")
@@ -467,18 +456,11 @@ with tab2:
   if "busca_termo" not in st.session_state:
     st.session_state.busca_termo = ""
 
-  busca_input = st.text_input(
-      "🔎 Digite o Nome do Paciente para Buscar:",
-      value=st.session_state.busca_termo,
-      key="input_busca_paciente",
-  )
+  busca_input = st.text_input("🔎 Digite o Nome do Paciente para Buscar:", value=st.session_state.busca_termo, key="input_busca_paciente")
   st.session_state.busca_termo = busca_input
 
   if busca_input:
-    cursor.execute(
-        "SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC",
-        (f"%{busca_input}%",),
-    )
+    cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
     registros = cursor.fetchall()
 
     if registros:
@@ -497,34 +479,25 @@ with tab2:
         usr_ent = reg[11] or "N/D"
 
         with st.container():
-          st.markdown(
-              f"""
+          st.markdown(f"""
             <div class="card-paciente">
                 <b>📌 Protocolo:</b> {protocolo} | <b>Data Registro:</b> {data_protocolo} (Cadastrado por: <i>{usr_cad}</i>)<br>
                 <b>👤 Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">{nome_paciente}</span><br>
                 <b>🧪 Exame:</b> {tipo_exame} | <b>Coleta:</b> {data_coleta}
             </div>
-          """,
-              unsafe_allow_html=True,
-          )
+          """, unsafe_allow_html=True)
 
           if status_atual == "Exame retirado":
             col_st1, col_st2 = st.columns(2)
             with col_st1:
-              st.markdown(
-                  '<div class="status-badge-verde">✔️ Exame retirado</div>',
-                  unsafe_allow_html=True,
-              )
+              st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
             with col_st2:
-              st.markdown(
-                  f"""
+              st.markdown(f"""
                 <div class="info-retirada-box">
                     👤 Retirado por: <b>{recebido_por_db}</b><br>
                     📅 Data: <b>{data_entrega_db}</b> | Entregue por: <b>{usr_ent}</b>
                 </div>
-              """,
-                  unsafe_allow_html=True,
-              )
+              """, unsafe_allow_html=True)
 
             st.markdown("---")
             dados_pdf = {
@@ -532,83 +505,43 @@ with tab2:
                 "data_coleta": data_coleta,
                 "nome_paciente": nome_paciente,
                 "tipo_exame": tipo_exame,
-                "data_entrega": data_entrega_db
-                or datetime.now().strftime("%d/%m/%Y"),
-                "recebido_por": recebido_por_db,
+                "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
+                "recebido_por": recebido_por_db
             }
             pdf_bytes = gerar_pdf_protocolo(dados_pdf)
 
             st.download_button(
-                label=(
-                    f"📄 BAIXAR / IMPRIMIR COMPROVANTE (PDF) - {protocolo}"
-                ),
+                label=f"📄 BAIXAR / IMPRIMIR COMPROVANTE (PDF) - {protocolo}",
                 data=pdf_bytes,
                 file_name=f"comprovante_{protocolo}.pdf",
                 mime="application/pdf",
-                key=f"dl_pdf_retirado_{id_reg}",
+                key=f"dl_pdf_retirado_{id_reg}"
             )
           else:
             col_st1, col_st2 = st.columns(2)
             with col_st1:
-              st.markdown(
-                  '<div class="status-badge-verde" style="background-color:'
-                  ' #0284c7;">🟢 Pronto para entrega</div>',
-                  unsafe_allow_html=True,
-              )
+              st.markdown('<div class="status-badge-verde" style="background-color: #0284c7;">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
             with col_st2:
-              recebido_por_input = st.text_input(
-                  "Retirado por (Nome de quem vai buscar)",
-                  value="",
-                  key=f"rec_por_{id_reg}",
-              )
+              recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{id_reg}")
 
-            if st.button(
-                "🚀 Concluir Retirada e Liberar Comprovante",
-                key=f"btn_liberar_{id_reg}",
-            ):
+            if st.button("🚀 Concluir Retirada e Liberar Comprovante", key=f"btn_liberar_{id_reg}"):
               if recebido_por_input.strip():
                 novo_status = "Exame retirado"
                 d_entrega = datetime.now().strftime("%d/%m/%Y")
 
-                cursor.execute(
-                    """
+                cursor.execute("""
                               UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ?, usuario_entrega = ? WHERE id = ?
-                          """,
-                    (
-                        novo_status,
-                        d_entrega,
-                        recebido_por_input.strip(),
-                        st.session_state.nome_usuario,
-                        id_reg,
-                    ),
-                )
+                          """, (novo_status, d_entrega, recebido_por_input.strip(), st.session_state.nome_usuario, id_reg))
                 conn.commit()
 
-                registrar_log(
-                    st.session_state.usuario_atual,
-                    "ENTREGA_EXAME",
-                    (
-                        "Exame do protocolo"
-                        f" {protocolo} entregue para"
-                        f" {recebido_por_input.strip()}"
-                    ),
-                )
+                registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
 
-                st.success(
-                    "✅ Exame concluído com sucesso! Atualizando"
-                    " visualização..."
-                )
+                st.success("✅ Exame concluído com sucesso! Atualizando visualização...")
                 st.rerun()
               else:
-                st.warning(
-                    "Por favor, preencha o nome de quem está retirando o"
-                    " exame."
-                )
+                st.warning("Por favor, preencha o nome de quem está retirando o exame.")
 
-          st.markdown(
-              "<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>",
-              unsafe_allow_html=True,
-          )
+          st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
     else:
       st.warning("Nenhum exame encontrado com este nome.")
 
@@ -618,12 +551,7 @@ with tab3:
   df = pd.read_sql("SELECT * FROM exames", conn)
   st.dataframe(df, use_container_width=True)
   csv = df.to_csv(index=False).encode("utf-8")
-  st.download_button(
-      "📥 Baixar Relatório em CSV",
-      csv,
-      "relatorio_exames_teixeiras.csv",
-      "csv",
-  )
+  st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 
 # ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":
@@ -641,48 +569,25 @@ if st.session_state.perfil_atual == "admin":
       with col_u1:
         novo_user_log = st.text_input("Nome de Usuário (Login)", key=f"u_log_{uv}")
       with col_u2:
-        novo_user_senha = st.text_input(
-            "Senha", type="password", key=f"u_sen_{uv}"
-        )
+        novo_user_senha = st.text_input("Senha", type="password", key=f"u_sen_{uv}")
       with col_u3:
         novo_user_nome = st.text_input("Nome Completo", key=f"u_nom_{uv}")
       with col_u4:
-        novo_user_perfil = st.selectbox(
-            "Perfil", ["atendente", "admin"], key=f"u_prf_{uv}"
-        )
+        novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"], key=f"u_prf_{uv}")
 
       btn_salvar_novo_user = st.form_submit_button("➕ Criar Novo Usuário")
       if btn_salvar_novo_user:
         if novo_user_log and novo_user_senha and novo_user_nome:
           try:
-            cursor.execute(
-                """
+            cursor.execute("""
                           INSERT INTO usuarios (username, senha, nome_completo, perfil)
                           VALUES (?, ?, ?, ?)
-                      """,
-                (
-                    novo_user_log.strip(),
-                    novo_user_senha,
-                    novo_user_nome.strip(),
-                    novo_user_perfil,
-                ),
-            )
+                      """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
             conn.commit()
-            registrar_log(
-                st.session_state.usuario_atual,
-                "CRIACAO_USUARIO",
-                (
-                    "Criado usuário"
-                    f" {novo_user_log.strip()} com perfil"
-                    f" {novo_user_perfil}"
-                ),
-            )
+            registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
 
             st.session_state.form_user_version += 1
-            st.success(
-                f"Usuário **{novo_user_log.strip()}** cadastrado com"
-                " sucesso!"
-            )
+            st.success(f"Usuário **{novo_user_log.strip()}** cadastrado com sucesso!")
             st.rerun()
           except sqlite3.IntegrityError:
             st.error("Este nome de usuário já existe no sistema.")
@@ -693,9 +598,7 @@ if st.session_state.perfil_atual == "admin":
 
     st.markdown("---")
     st.markdown("### 📋 Usuários Cadastrados no Sistema")
-    df_usuarios = pd.read_sql(
-        "SELECT id, username, nome_completo, perfil FROM usuarios", conn
-    )
+    df_usuarios = pd.read_sql("SELECT id, username, nome_completo, perfil FROM usuarios", conn)
     st.dataframe(df_usuarios, use_container_width=True)
 
     st.markdown("---")
@@ -711,24 +614,18 @@ if st.session_state.perfil_atual == "admin":
             "📥 Baixar Backup (.db)",
             db_bytes,
             f"backup_{datetime.now().strftime('%Y-%m-%d')}.db",
-            "application/octet-stream",
+            "application/octet-stream"
         )
       except Exception as e:
         st.error(f"Erro: {e}")
 
     with col_maint2:
       st.markdown("**Restaurar Banco**")
-      arquivo_backup = st.file_uploader(
-          "Selecione o arquivo .db", type=["db"]
-      )
+      arquivo_backup = st.file_uploader("Selecione o arquivo .db", type=["db"])
       if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
         with open(DB_NAME, "wb") as f:
           f.write(arquivo_backup.getbuffer())
-        registrar_log(
-            st.session_state.usuario_atual,
-            "RESTAURACAO_BANCO",
-            "Banco de dados restaurado via upload",
-        )
+        registrar_log(st.session_state.usuario_atual, "RESTAURACAO_BANCO", "Banco de dados restaurado via upload")
         st.success("Restaurado com sucesso! Recarregue a página.")
 
     with col_maint3:
@@ -744,15 +641,8 @@ if st.session_state.perfil_atual == "admin":
           st.error(f"Erro ao zerar banco: {e}")
 
     st.markdown("---")
-    st.markdown(
-        "### 📋 Logs de Auditoria do Sistema (Quem fez o quê)"
-    )
+    st.markdown("### 📋 Logs de Auditoria do Sistema (Quem fez o quê)")
     df_logs = pd.read_sql("SELECT * FROM logs_sistema ORDER BY id DESC", conn)
     st.dataframe(df_logs, use_container_width=True)
     csv_logs = df_logs.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "📥 Baixar Logs de Auditoria (CSV)",
-        csv_logs,
-        "logs_auditoria_teixeiras.csv",
-        "csv",
-    )
+    st.download_button("📥 Baixar Logs de Auditoria (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")

@@ -1,6 +1,4 @@
 from datetime import datetime
-import base64
-import io
 import os
 import sqlite3
 from fpdf import FPDF
@@ -242,7 +240,7 @@ def modal_entregar_exames():
           status_atual = reg[5] if reg[5] else "Pronto para entrega"
 
           if status_atual == "Exame retirado":
-            # Se já foi retirado, mostra o status verde, quem retirou e o botão foguetinho gerando o PDF diretamente
+            # Se já foi retirado, mostra apenas o status verde e o campo fixo, sem nenhum botão de impressão
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
@@ -250,30 +248,6 @@ def modal_entregar_exames():
             with c2:
               st.markdown("Retirado por")
               st.text_input("Retirado por (Fixado)", value=reg[8] or "", disabled=True, key=f"rec_por_fixo_{reg[0]}")
-
-            cursor.execute("SELECT data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
-            db_res = cursor.fetchone()
-            
-            dados_dict = {
-                "protocolo": reg[1],
-                "data_coleta": reg[2],
-                "nome_paciente": reg[3],
-                "tipo_exame": reg[4],
-                "recebido_por": db_res[1] or reg[8] or "Não informado",
-                "data_entrega": db_res[0] or datetime.now().strftime("%d/%m/%Y")
-            }
-            pdf_bytes = gerar_pdf_protocolo(dados_dict)
-            b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            
-            href = f'''
-                <a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" 
-                   style="display:inline-block; padding:8px 14px; background-color:#0284c7; color:white; 
-                   text-decoration:none; border-radius:8px; font-weight:600; font-size:14px; margin-top:15px;">
-                   🚀 Imprimir Comprovante de Entrega (PDF)
-                </a>
-            '''
-            st.markdown(href, unsafe_allow_html=True)
-
           else:
             # Se ainda estiver pendente, mostra o formulário com o botão do foguetinho para salvar e liberar
             with st.form(f"form_update_{reg[0]}"):

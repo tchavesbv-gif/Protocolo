@@ -42,21 +42,9 @@ st.markdown("""
             font-weight: 500;
         }
 
-        /* Botão visual estilizado para o Status Atual */
+        /* Botão visual estilizado para o Status (Sempre Verde) */
         .status-badge-verde {
             background-color: #10b981;
-            color: white;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: 700;
-            text-align: center;
-            font-size: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: block;
-            margin-top: 26px;
-        }
-        .status-badge-cinza {
-            background-color: #64748b;
             color: white;
             padding: 10px 16px;
             border-radius: 8px;
@@ -257,10 +245,9 @@ def modal_entregar_exames():
             c1, c2 = st.columns(2)
             with c1:
               st.markdown("Status Atual")
-              if status_atual == "Pronto para entrega":
-                st.markdown('<div class="status-badge-verde">🟢 Pronto para entrega</div>', unsafe_allow_html=True)
-              else:
-                st.markdown('<div class="status-badge-cinza">✔️ Exame retirado</div>', unsafe_allow_html=True)
+              # Exibe sempre em verde conforme solicitado
+              texto_status = "✔️ Exame retirado" if status_atual == "Exame retirado" else "🟢 Pronto para entrega"
+              st.markdown(f'<div class="status-badge-verde">{texto_status}</div>', unsafe_allow_html=True)
             with c2:
               valor_inicial_retirado = reg[8] if reg[8] is not None else ""
               recebido_por = st.text_input("Retirado por", value=valor_inicial_retirado, key=f"rec_por_{reg[0]}")
@@ -276,7 +263,7 @@ def modal_entregar_exames():
               st.success("✅ Exame atualizado com sucesso!")
               st.rerun()
 
-          # Verifica o status atualizado no banco para exibir o PDF imediatamente se já estiver retirado
+          # Se o exame estiver com status de retirado, gera e exibe o PDF automaticamente sem passos extras
           cursor.execute("SELECT status, data_entrega, recebido_por FROM exames WHERE id = ?", (reg[0],))
           status_atual_db = cursor.fetchone()
 
@@ -293,12 +280,11 @@ def modal_entregar_exames():
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
             
             st.markdown("---")
-            st.markdown("### 📄 Comprovante Pronto para Impressão:")
             href = f'''
                 <a href="data:application/pdf;base64,{b64}" download="Protocolo_{reg[1]}.pdf" target="_blank" 
                    style="display:block; text-align:center; padding:12px 20px; background-color:#10b981; color:white; 
                    text-decoration:none; border-radius:8px; font-weight:700; font-size:16px; margin-top:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                   🖨️ CLIQUE AQUI PARA IMPRIMIR O COMPROVANTE (PDF)
+                   🖨️ IMPRIMIR COMPROVANTE DE ENTREGA (PDF)
                 </a>
             '''
             st.markdown(href, unsafe_allow_html=True)

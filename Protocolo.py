@@ -237,28 +237,31 @@ if "nome_usuario" not in st.session_state:
   st.session_state.nome_usuario = None
 
 if not st.session_state.autenticado:
-  col_l_logo, col_l_texto = st.columns([1, 6])
-  with col_l_logo:
+  # Layout centralizado e equilibrado para a tela de login
+  col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
+  with col_l2:
+    st.markdown("<div style='margin-top: 40px;'></div>", unsafe_app_html=False if 'unsafe_app_html' in globals() else None)
+    
+    # Bloco superior do login com logo centralizada e banner unificado
     if os.path.exists("logo_prefeitura.jpg"):
-      st.image("logo_prefeitura.jpg", width=100)
-  with col_l_texto:
+      col_img1, col_img2, col_img3 = st.columns([1, 1, 1])
+      with col_img2:
+        st.image("logo_prefeitura.jpg", width=110)
+    
     st.markdown("""
-          <div class="header-box-unica" style="justify-content: center; text-align: left; margin-bottom: 0px;">
-              <div>
-                  <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
-                  <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
-              </div>
+          <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 15px; margin-bottom: 25px;">
+              <p class="header-title" style="font-size: 24px !important;">Secretaria Municipal de Saúde de Teixeiras</p>
+              <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
           </div>
       """, unsafe_allow_html=True)
 
-  st.markdown("<br>", unsafe_allow_html=True)
-  col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
-  with col_l2:
-    st.markdown("### 🔐 Identificação do Usuário")
     with st.form("form_login"):
+      st.markdown("### 🔐 Identificação do Usuário")
       user_input = st.text_input("Usuário")
       senha_input = st.text_input("Senha", type="password")
-      btn_login = st.form_submit_button("Entrar no Sistema")
+      
+      st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+      btn_login = st.form_submit_button("Entrar no Sistema", use_container_width=True)
 
       if btn_login:
         conn_l = sqlite3.connect(DB_NAME)
@@ -569,7 +572,7 @@ if st.session_state.perfil_atual == "admin":
       with col_u2:
         novo_user_senha = st.text_input("Senha", type="password", key=f"u_sen_{uv}")
       with col_u3:
-        novo_user_nome = st.text_input("Nome Completo", key=f"u_nom_{uv}")
+        novo_user_nome = st.text_icon = st.text_input("Nome Completo", key=f"u_nom_{uv}")
       with col_u4:
         novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"], key=f"u_prf_{uv}")
 

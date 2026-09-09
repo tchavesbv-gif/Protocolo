@@ -17,16 +17,34 @@ st.set_page_config(
 st.markdown("""
     <style>
         .main { background-color: #f8fafc; }
-        .header-container {
+        
+        .header-box {
             background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
-            padding: 25px 30px;
+            padding: 20px 25px;
             border-radius: 12px;
             color: white;
             margin-bottom: 25px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .header-title { font-size: 26px; font-weight: 700; margin: 0; color: #ffffff; }
-        .header-subtitle { font-size: 14px; color: #e0f2fe; margin-top: 5px; font-weight: 400; }
+        .header-content h1 {
+            font-size: 24px !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+            color: #ffffff !important;
+        }
+        .header-content p {
+            font-size: 14px !important;
+            color: #e0f2fe !important;
+            margin: 4px 0 0 0 !important;
+        }
+        .header-user {
+            font-size: 13px !important;
+            color: #f1f5f9 !important;
+            margin-top: 8px !important;
+        }
 
         label, .stTextInput label, .stSelectbox label {
             font-size: 17px !important;
@@ -97,16 +115,15 @@ st.markdown("""
         }
         div.stButton > button:hover { background-color: #0369a1; }
 
-        /* Estilo específico para o botão de logout */
-        div.btn-logout-container div.stButton > button {
+        /* Botão de Sair em vermelho dentro do layout */
+        div.btn-logout div.stButton > button {
             background-color: #ef4444 !important;
             color: white !important;
             font-size: 14px !important;
-            padding: 0.4rem 0.8rem !important;
+            padding: 0.5rem 1rem !important;
             border-radius: 6px !important;
-            float: right;
         }
-        div.btn-logout-container div.stButton > button:hover {
+        div.btn-logout div.stButton > button:hover {
             background-color: #dc2626 !important;
         }
 
@@ -173,7 +190,6 @@ def init_db():
         )
     """)
 
-  # Usuários padrão iniciais do sistema
   cursor.execute("SELECT COUNT(*) FROM usuarios")
   if cursor.fetchone()[0] == 0:
     usuarios_iniciais = [
@@ -215,9 +231,9 @@ if "nome_usuario" not in st.session_state:
 
 if not st.session_state.autenticado:
   st.markdown("""
-        <div class="header-container" style="text-align: center;">
-            <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-            <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
+        <div class="header-box" style="justify-content: center; text-align: center; display: block;">
+            <h1>🏥 Secretaria Municipal de Saúde de Teixeiras</h1>
+            <p>Acesso Restrito ao Sistema de Controle de Exames</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -312,23 +328,24 @@ def gerar_pdf_protocolo(dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-st.markdown('<div class="header-container">', unsafe_allow_html=True)
-col_h1, col_h2 = st.columns([4, 1])
+col_h1, col_h2 = st.columns([5, 1])
 
 with col_h1:
-  st.markdown("""
-        <p class="header-title">🏥 Secretaria Municipal de Saúde de Teixeiras</p>
-        <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
-    """, unsafe_allow_html=True)
   st.markdown(f"""
-        <div style="margin-top: 15px; color: #e0f2fe; font-size: 14px;">
-            👤 Logado como: <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})
+        <div class="header-box" style="margin-bottom: 0px;">
+            <div class="header-content">
+                <h1>🏥 Secretaria Municipal de Saúde de Teixeiras</h1>
+                <p>Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
+                <div class="header-user">👤 Logado como: <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
 with col_h2:
-  st.markdown('<div class="btn-logout-container">', unsafe_allow_html=True)
-  if st.button("🚪 Sair do Sistema", key="btn_logout_topo", use_container_width=True):
+  # Espaçamento para alinhar verticalmente com o bloco azul
+  st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
+  st.markdown('<div class="btn-logout">', unsafe_allow_html=True)
+  if st.button("🚪 Sair", key="btn_logout_topo", use_container_width=True):
     registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
     st.session_state.autenticado = False
     st.session_state.usuario_atual = None
@@ -337,7 +354,7 @@ with col_h2:
     st.rerun()
   st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
 # Abas dinâmicas baseadas no perfil
 if st.session_state.perfil_atual == "admin":

@@ -574,7 +574,9 @@ if st.session_state.perfil_atual == "admin":
       with col_u4:
         novo_user_perfil = st.selectbox("Perfil", ["atendente", "admin"], key=f"u_prf_{uv}")
 
-      btn_salvar_novo_user = st.form_submit_button("➕ Criar Novo Usuário")
+      st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+      btn_salvar_novo_user = st.form_submit_button("✅ Confirmar e Cadastrar Novo Usuário")
+      
       if btn_salvar_novo_user:
         if novo_user_log and novo_user_senha and novo_user_nome:
           try:
@@ -586,14 +588,14 @@ if st.session_state.perfil_atual == "admin":
             registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
 
             st.session_state.form_user_version += 1
-            st.success(f"Usuário **{novo_user_log.strip()}** cadastrado com sucesso!")
+            st.success(f"🎉 Usuário criado com sucesso! O login **{novo_user_log.strip()}** já está ativo no sistema.")
             st.rerun()
           except sqlite3.IntegrityError:
             st.error("Este nome de usuário já existe no sistema.")
           except Exception as e:
             st.error(f"Erro: {e}")
         else:
-          st.warning("Preencha todos os campos do novo usuário.")
+          st.warning("Preencha todos os campos do novo usuário antes de confirmar.")
 
     st.markdown("---")
     st.markdown("### 📋 Usuários Cadastrados no Sistema")

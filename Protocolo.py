@@ -144,20 +144,10 @@ st.markdown("""
 # ==========================================
 # 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POSTGRESQL)
 # ==========================================
-DB_HOST = "db.yqvuqhzpyvxnbglxynbh.supabase.co"
-DB_NAME = "postgres"
-DB_USER = "postgres"
-DB_PASS = "miwnSzkVciZ6t88R"
-DB_PORT = "5432"
+DATABASE_URL = "postgresql://postgres:miwnSzkVciZ6t88R@db.yqvuqhzpyvxnbglxynbh.supabase.co:5432/postgres?sslmode=require"
 
 def get_connection():
-  return psycopg2.connect(
-      host=DB_HOST,
-      database=DB_NAME,
-      user=DB_USER,
-      password=DB_PASS,
-      port=DB_PORT,
-  )
+  return psycopg2.connect(DATABASE_URL)
 
 def init_db():
   conn = get_connection()

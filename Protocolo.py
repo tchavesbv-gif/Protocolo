@@ -1,8 +1,8 @@
 from datetime import datetime
 import os
-import sqlite3
-from fpdf import FPDF
 import pandas as pd
+from fpdf import FPDF
+import psycopg2
 import streamlit as st
 
 # ==========================================
@@ -142,17 +142,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E MIGRAÇÃO DO BANCO DE DADOS
+# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POSTGRESQL)
 # ==========================================
-DB_NAME = "secretaria_teixeiras_exames.db"
+DB_HOST = "db.yqvuqhzpyvxnbglxynbh.supabase.co"
+DB_NAME = "postgres"
+DB_USER = "postgres"
+DB_PASS = "miwnSzkVciZ6t88R"
+DB_PORT = "5432"
+
+def get_connection():
+  return psycopg2.connect(
+      host=DB_HOST,
+      database=DB_NAME,
+      user=DB_USER,
+      password=DB_PASS,
+      port=DB_PORT,
+  )
 
 def init_db():
-  conn = sqlite3.connect(DB_NAME)
+  conn = get_connection()
   cursor = conn.cursor()
   
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             protocolo TEXT UNIQUE NOT NULL,
             data_coleta TEXT NOT NULL,
             nome_paciente TEXT NOT NULL,
@@ -167,19 +180,9 @@ def init_db():
         )
     """)
   
-  cursor.execute("PRAGMA table_info(exames)")
-  colunas_existentes = [col[1] for col in cursor.fetchall()]
-  
-  if "usuario_cadastro" not in colunas_existentes:
-    cursor.execute("ALTER TABLE exames ADD COLUMN usuario_cadastro TEXT")
-  if "usuario_entrega" not in colunas_existentes:
-    cursor.execute("ALTER TABLE exames ADD COLUMN usuario_entrega TEXT")
-  if "data_protocolo" not in colunas_existentes:
-    cursor.execute("ALTER TABLE exames ADD COLUMN data_protocolo TEXT")
-
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs_sistema (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             data_hora TEXT NOT NULL,
             usuario TEXT NOT NULL,
             acao TEXT NOT NULL,
@@ -189,7 +192,7 @@ def init_db():
 
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL,
             nome_completo TEXT NOT NULL,
@@ -204,24 +207,28 @@ def init_db():
         ("atendente1", "123", "Atendente Recepção 1", "atendente"),
         ("atendente2", "123", "Atendente Recepção 2", "atendente")
     ]
-    cursor.executemany("""
-            INSERT INTO usuarios (username, senha, nome_completo, perfil)
-            VALUES (?, ?, ?, ?)
-        """, usuarios_iniciais)
+    for u, s, n, p in usuarios_iniciais:
+      cursor.execute("""
+                INSERT INTO usuarios (username, senha, nome_completo, perfil)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO NOTHING
+            """, (u, s, n, p))
 
   conn.commit()
+  cursor.close()
   conn.close()
 
 init_db()
 
 def registrar_log(usuario, acao, detalhes=""):
-  conn = sqlite3.connect(DB_NAME)
+  conn = get_connection()
   cursor = conn.cursor()
   cursor.execute("""
         INSERT INTO logs_sistema (data_hora, usuario, acao, detalhes)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
     """, (datetime.now().strftime("%d/%m/%Y %H:%M:%S"), usuario, acao, detalhes))
   conn.commit()
+  cursor.close()
   conn.close()
 
 # ==========================================
@@ -262,10 +269,11 @@ if not st.session_state.autenticado:
       btn_login = st.form_submit_button("Entrar no Sistema", use_container_width=True)
 
       if btn_login:
-        conn_l = sqlite3.connect(DB_NAME)
+        conn_l = get_connection()
         cursor_l = conn_l.cursor()
-        cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = ?", (user_input.strip(),))
+        cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = %s", (user_input.strip(),))
         res = cursor_l.fetchone()
+        cursor_l.close()
         conn_l.close()
 
         if res and res[0] == senha_input:
@@ -394,9 +402,6 @@ else:
       "📊 Relatórios"
   ])
 
-conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-cursor = conn.cursor()
-
 # ABA 1: Novo Protocolo
 with tab1:
   st.markdown("### 📝 Registrar Novo Exame Coletado")
@@ -423,9 +428,11 @@ with tab1:
         data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
         data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
         try:
+          conn = get_connection()
+          cursor = conn.cursor()
           cursor.execute("""
                         INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por, data_protocolo, usuario_cadastro)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         num_protocolo,
                         data_coleta_str,
@@ -437,6 +444,8 @@ with tab1:
                         st.session_state.nome_usuario
                     ))
           conn.commit()
+          cursor.close()
+          conn.close()
 
           registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente}")
 
@@ -459,8 +468,12 @@ with tab2:
   st.session_state.busca_termo = busca_input
 
   if busca_input:
-    cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM exames WHERE nome_paciente ILIKE %s ORDER BY id DESC", (f"%{busca_input}%",))
     registros = cursor.fetchall()
+    cursor.close()
+    conn.close()
 
     if registros:
       st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
@@ -528,10 +541,14 @@ with tab2:
                 novo_status = "Exame retirado"
                 d_entrega = datetime.now().strftime("%d/%m/%Y")
 
+                conn = get_connection()
+                cursor = conn.cursor()
                 cursor.execute("""
-                              UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ?, usuario_entrega = ? WHERE id = ?
+                              UPDATE exames SET status = %s, data_entrega = %s, recebido_por = %s, usuario_entrega = %s WHERE id = %s
                           """, (novo_status, d_entrega, recebido_por_input.strip(), st.session_state.nome_usuario, id_reg))
                 conn.commit()
+                cursor.close()
+                conn.close()
 
                 registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
 
@@ -547,7 +564,9 @@ with tab2:
 # ABA 3: Relatórios
 with tab3:
   st.markdown("### 📊 Relatório Geral do Sistema")
+  conn = get_connection()
   df = pd.read_sql("SELECT * FROM exames", conn)
+  conn.close()
   st.dataframe(df, use_container_width=True)
   csv = df.to_csv(index=False).encode("utf-8")
   st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
@@ -580,17 +599,22 @@ if st.session_state.perfil_atual == "admin":
       if btn_salvar_novo_user:
         if novo_user_log and novo_user_senha and novo_user_nome:
           try:
+            conn = get_connection()
+            cursor = conn.cursor()
             cursor.execute("""
                           INSERT INTO usuarios (username, senha, nome_completo, perfil)
-                          VALUES (?, ?, ?, ?)
+                          VALUES (%s, %s, %s, %s)
                       """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
             conn.commit()
+            cursor.close()
+            conn.close()
+
             registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
 
             st.session_state.form_user_version += 1
             st.success(f"🎉 Usuário criado com sucesso! O login **{novo_user_log.strip()}** já está ativo no sistema.")
             st.rerun()
-          except sqlite3.IntegrityError:
+          except psycopg2.errors.UniqueViolation:
             st.error("Este nome de usuário já existe no sistema.")
           except Exception as e:
             st.error(f"Erro: {e}")
@@ -599,51 +623,16 @@ if st.session_state.perfil_atual == "admin":
 
     st.markdown("---")
     st.markdown("### 📋 Usuários Cadastrados no Sistema")
+    conn = get_connection()
     df_usuarios = pd.read_sql("SELECT id, username, nome_completo, perfil FROM usuarios", conn)
+    conn.close()
     st.dataframe(df_usuarios, use_container_width=True)
 
     st.markdown("---")
-    st.markdown("### 🛠️ Ferramentas de Manutenção e Segurança")
-    col_maint1, col_maint2, col_maint3 = st.columns(3)
-
-    with col_maint1:
-      st.markdown("**Backup do Banco**")
-      try:
-        with open(DB_NAME, "rb") as f:
-          db_bytes = f.read()
-        st.download_button(
-            "📥 Baixar Backup (.db)",
-            db_bytes,
-            f"backup_{datetime.now().strftime('%Y-%m-%d')}.db",
-            "application/octet-stream"
-        )
-      except Exception as e:
-        st.error(f"Erro: {e}")
-
-    with col_maint2:
-      st.markdown("**Restaurar Banco**")
-      arquivo_backup = st.file_uploader("Selecione o arquivo .db", type=["db"])
-      if arquivo_backup is not None and st.button("🚀 Confirmar Restauração"):
-        with open(DB_NAME, "wb") as f:
-          f.write(arquivo_backup.getbuffer())
-        registrar_log(st.session_state.usuario_atual, "RESTAURACAO_BANCO", "Banco de dados restaurado via upload")
-        st.success("Restaurado com sucesso! Recarregue a página.")
-
-    with col_maint3:
-      st.markdown("⚠️ **Zona de Perigo**")
-      if st.button("🗑️ Zerar / Limpar Banco de Dados"):
-        try:
-          conn.close()
-          if os.path.exists(DB_NAME):
-            os.remove(DB_NAME)
-          st.success("Banco de dados limpo e zerado com sucesso!")
-          st.rerun()
-        except Exception as e:
-          st.error(f"Erro ao zerar banco: {e}")
-
-    st.markdown("---")
-    st.markdown("### 📋 Logs de Auditoria do Sistema (Quem fez o quê)")
+    st.markdown("### 🛠️ Ferramentas de Auditoria e Logs")
+    conn = get_connection()
     df_logs = pd.read_sql("SELECT * FROM logs_sistema ORDER BY id DESC", conn)
+    conn.close()
     st.dataframe(df_logs, use_container_width=True)
     csv_logs = df_logs.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Baixar Logs de Auditoria (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")

@@ -232,11 +232,10 @@ if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = None
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = None
-if "fazer_backup_sair" not in st.session_state:
-    st.session_state.fazer_backup_sair = False
+if "fase_backup_pronto" not in st.session_state:
+    st.session_state.fase_backup_pronto = None
 
 if not st.session_state.autenticado:
-    # Se o usuário acabou de solicitar o logout e o backup foi gerado, mostra a tela de download do backup
     if st.session_state.fase_backup_pronto and os.path.exists(st.session_state.fase_backup_pronto):
         col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
         with col_b2:
@@ -399,7 +398,6 @@ with col_h2:
         if st.button("🚪 Sair do Sistema", key="btn_sair_sistema"):
             registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
             
-            # Executa backup automático ao sair
             if os.path.exists(DB_FILE):
                 st.session_state.fase_backup_pronto = DB_FILE
             else:

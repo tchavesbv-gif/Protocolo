@@ -140,7 +140,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POSTGRESQL)
+# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE
 # ==========================================
 DATABASE_URL = "postgresql://postgres:miwnSzkVciZ6t88R@db.yqvuqhzpyvxnbglxynbh.supabase.co:5432/postgres?sslmode=require"
 

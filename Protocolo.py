@@ -140,9 +140,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE
+# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POOLER)
 # ==========================================
-DATABASE_URL = "postgresql://postgres:miwnSzkVciZ6t88R@db.yqvuqhzpyvxnbglxynbh.supabase.co:5432/postgres?sslmode=require"
+# Usando o Session Pooler do Supabase (porta 6543) para conexões externas estáveis
+DATABASE_URL = "postgresql://postgres.yqvuqhzpyvxnbglxynbh:miwnSzkVciZ6t88R@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
 
 def get_connection():
     return psycopg2.connect(DATABASE_URL)

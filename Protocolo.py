@@ -1,8 +1,8 @@
 from datetime import datetime
 import os
-import sqlite3
-from fpdf import FPDF
 import pandas as pd
+from fpdf import FPDF
+import psycopg2
 import streamlit as st
 
 # ==========================================
@@ -140,12 +140,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O SQLITE
+# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POSTGRESQL)
 # ==========================================
-DB_FILE = "banco_exames.db"
+DATABASE_URL = "postgresql://postgres:miwnSzkVciZ6t88R@db.yqvuqhzpyvxnbglxynbh.supabase.co:5432/postgres?sslmode=require"
 
 def get_connection():
-    return sqlite3.connect(DB_FILE)
+    return psycopg2.connect(DATABASE_URL)
 
 def init_db():
     conn = get_connection()
@@ -153,7 +153,7 @@ def init_db():
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exames (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             protocolo TEXT UNIQUE NOT NULL,
             data_coleta TEXT NOT NULL,
             nome_paciente TEXT NOT NULL,
@@ -170,7 +170,7 @@ def init_db():
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs_sistema (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             data_hora TEXT NOT NULL,
             usuario TEXT NOT NULL,
             acao TEXT NOT NULL,
@@ -180,7 +180,7 @@ def init_db():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL,
             nome_completo TEXT NOT NULL,
@@ -197,8 +197,9 @@ def init_db():
         ]
         for u, s, n, p in usuarios_iniciais:
             cursor.execute("""
-                INSERT OR IGNORE INTO usuarios (username, senha, nome_completo, perfil)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO usuarios (username, senha, nome_completo, perfil)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (username) DO NOTHING
             """, (u, s, n, p))
 
     conn.commit()
@@ -213,7 +214,7 @@ def registrar_log(usuario, acao, detalhes=""):
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO logs_sistema (data_hora, usuario, acao, detalhes)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         """, (datetime.now().strftime("%d/%m/%Y %H:%M:%S"), usuario, acao, detalhes))
         conn.commit()
         cursor.close()
@@ -232,35 +233,8 @@ if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = None
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = None
-if "fase_backup_pronto" not in st.session_state:
-    st.session_state.fase_backup_pronto = None
 
 if not st.session_state.autenticado:
-    if st.session_state.fase_backup_pronto and os.path.exists(st.session_state.fase_backup_pronto):
-        col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
-        with col_b2:
-            st.markdown("""
-                <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 20px;">
-                    <p class="header-title" style="font-size: 22px !important;">Backup do Sistema Realizado</p>
-                    <p class="header-subtitle">Guarde o arquivo de banco de dados gerado por segurança.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            with open(st.session_state.fase_backup_pronto, "rb") as f:
-                st.download_button(
-                    label="📥 Baixar Arquivo de Backup do Banco (.db)",
-                    data=f,
-                    file_name=f"backup_banco_exames_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
-                    mime="application/octet-stream",
-                    use_container_width=True
-                )
-            
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            if st.button("🔄 Voltar para a Tela de Login", use_container_width=True):
-                st.session_state.fase_backup_pronto = None
-                st.rerun()
-        st.stop()
-
     col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
     with col_l2:
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
@@ -273,7 +247,7 @@ if not st.session_state.autenticado:
         st.markdown("""
             <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 15px; margin-bottom: 25px;">
                 <p class="header-title" style="font-size: 24px !important;">Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle">Acesso Restrito ao Sistema de Controle de Exames</p>
+                <p class="header-subtitle">Acesso Restrito - Nuvem Segura (Supabase)</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -288,7 +262,7 @@ if not st.session_state.autenticado:
             if btn_login:
                 conn_l = get_connection()
                 cursor_l = conn_l.cursor()
-                cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = ?", (user_input.strip(),))
+                cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = %s", (user_input.strip(),))
                 res = cursor_l.fetchone()
                 cursor_l.close()
                 conn_l.close()
@@ -397,12 +371,6 @@ with col_h2:
     with col_b_sair:
         if st.button("🚪 Sair do Sistema", key="btn_sair_sistema"):
             registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
-            
-            if os.path.exists(DB_FILE):
-                st.session_state.fase_backup_pronto = DB_FILE
-            else:
-                st.session_state.fase_backup_pronto = None
-
             st.session_state.autenticado = False
             st.session_state.usuario_atual = None
             st.session_state.perfil_atual = None
@@ -446,7 +414,7 @@ with tab1:
                     cursor = conn.cursor()
                     cursor.execute("""
                         INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por, data_protocolo, usuario_cadastro)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         num_protocolo,
                         data_coleta_str,
@@ -484,7 +452,7 @@ with tab2:
     if busca_input:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM exames WHERE nome_paciente LIKE ? ORDER BY id DESC", (f"%{busca_input}%",))
+        cursor.execute("SELECT * FROM exames WHERE nome_paciente ILIKE %s ORDER BY id DESC", (f"%{busca_input}%",))
         registros = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -558,7 +526,7 @@ with tab2:
                                 conn = get_connection()
                                 cursor = conn.cursor()
                                 cursor.execute("""
-                                    UPDATE exames SET status = ?, data_entrega = ?, recebido_por = ?, usuario_entrega = ? WHERE id = ?
+                                    UPDATE exames SET status = %s, data_entrega = %s, recebido_por = %s, usuario_entrega = %s WHERE id = %s
                                 """, (novo_status, d_entrega, recebido_por_input.strip(), st.session_state.nome_usuario, id_reg))
                                 conn.commit()
                                 cursor.close()
@@ -616,7 +584,7 @@ if st.session_state.perfil_atual == "admin":
                         cursor = conn.cursor()
                         cursor.execute("""
                             INSERT INTO usuarios (username, senha, nome_completo, perfil)
-                            VALUES (?, ?, ?, ?)
+                            VALUES (%s, %s, %s, %s)
                         """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
                         conn.commit()
                         cursor.close()
@@ -627,7 +595,7 @@ if st.session_state.perfil_atual == "admin":
                         st.session_state.form_user_version += 1
                         st.success(f"🎉 Usuário criado com sucesso! O login **{novo_user_log.strip()}** já está ativo no sistema.")
                         st.rerun()
-                    except sqlite3.IntegrityError:
+                    except psycopg2.errors.UniqueViolation:
                         st.error("Este nome de usuário já existe no sistema.")
                     except Exception as e:
                         st.error(f"Erro: {e}")

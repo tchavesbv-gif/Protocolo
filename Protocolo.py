@@ -73,8 +73,10 @@ st.markdown("""
 
         .stTextInput > div > div, 
         .stDateInput > div > div,
+        .stSelectbox > div > div,
         div[data-baseweb="input"], 
-        div[data-baseweb="base-input"] {
+        div[data-baseweb="base-input"],
+        div[data-baseweb="select"] {
             background-color: #ffffff !important;
             background: #ffffff !important;
             border: 2px solid #1e3a8a !important;
@@ -327,6 +329,13 @@ else:
 with tab1:
     st.markdown("### 📝 Registrar Novo Exame Coletado")
 
+    # Busca lista de exames cadastrados no Supabase
+    try:
+        res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
+        lista_exames_cadastrados = [t["nome"] for t in res_tipos.data] if res_tipos.data else []
+    except Exception:
+        lista_exames_cadastrados = []
+
     if "form_version" not in st.session_state:
         st.session_state.form_version = 0
 
@@ -339,21 +348,41 @@ with tab1:
         with col2:
             nome_paciente = st.text_input("Nome Completo do Paciente", key=f"val_nome_{v}")
 
-        tipo_exame = st.text_input("Tipo de Exame (ex: Hemograma, Preventivo...)", key=f"val_tipo_{v}")
+        st.markdown("---")
+        st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
+        
+        col_ex1, col_ex2 = st.columns(2)
+        with col_ex1:
+            exame_selecionado = st.selectbox(
+                "Selecionar da Lista Cadastrada",
+                ["-- Selecione ou digite abaixo --"] + lista_exames_cadastrados,
+                key=f"sel_exame_{v}"
+            )
+        with col_ex2:
+            exame_novo_input = st.text_input("Ou Digite um Novo Tipo de Exame", key=f"val_novo_tipo_{v}")
 
         submitted = st.form_submit_button("💾 Salvar Registro de Exame")
 
         if submitted:
-            if nome_paciente:
+            # Define qual tipo de exame vai ser usado
+            tipo_exame_final = ""
+            if exame_novo_input.strip():
+                tipo_exame_final = exame_novo_input.strip()
+            elif exame_selecionado != "-- Selecione ou digite abaixo --":
+                tipo_exame_final = exame_selecionado
+
+            if nome_paciente and tipo_exame_final:
                 num_protocolo = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
                 data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                
                 try:
+                    # 1. Salva o exame na tabela principal
                     supabase.table("exames").insert({
                         "protocolo": num_protocolo,
                         "data_coleta": data_coleta_str,
                         "nome_paciente": nome_paciente,
-                        "tipo_exame": tipo_exame,
+                        "tipo_exame": tipo_exame_final,
                         "status": "Pronto para entrega",
                         "recebido_por": "",
                         "data_protocolo": data_protocolo_str,
@@ -361,7 +390,14 @@ with tab1:
                         "usuario_entrega": ""
                     }).execute()
 
-                    registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente}")
+                    # 2. Se for um exame novo digitado, cadastra automaticamente na tabela de tipos para aparecer nas próximas vezes!
+                    if exame_novo_input.strip():
+                        try:
+                            supabase.table("tipos_exames").insert({"nome": exame_novo_input.strip()}).execute()
+                        except Exception:
+                            pass # Ignora se já existir
+
+                    registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente} ({tipo_exame_final})")
 
                     st.session_state.form_version += 1
                     st.success(f"🎉 Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
@@ -369,7 +405,7 @@ with tab1:
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
             else:
-                st.warning("Preencha o Nome Completo do Paciente.")
+                st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame (selecionando na lista ou digitando um novo).")
 
 # ABA 2: Entregar Exames
 with tab2:

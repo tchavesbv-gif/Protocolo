@@ -1,9 +1,9 @@
 from datetime import datetime
 import os
-import pandas as pd
 from fpdf import FPDF
-import psycopg2
+import pandas as pd
 import streamlit as st
+from supabase import create_client
 
 # ==========================================
 # 0. CONFIGURAÇÃO GLOBAL E ESTILOS CSS
@@ -140,86 +140,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE (POOLER)
+# 1. CONEXÃO COM O SUPABASE (API REST)
 # ==========================================
-# Usando o Session Pooler do Supabase (porta 6543) para conexões externas estáveis
-DATABASE_URL = "postgresql://postgres.yqvuqhzpyvxnbglxynbh:miwnSzkVciZ6t88R@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
+SUPABASE_URL = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
+SUPABASE_KEY = "sb_publishable_gd15fFKsaKLyENPqiSLDHg_FMvSa1Ii"
 
-def get_connection():
-    return psycopg2.connect(DATABASE_URL)
+@st.cache_resource
+def init_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def init_db():
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS exames (
-            id SERIAL PRIMARY KEY,
-            protocolo TEXT UNIQUE NOT NULL,
-            data_coleta TEXT NOT NULL,
-            nome_paciente TEXT NOT NULL,
-            tipo_exame TEXT NOT NULL,
-            status TEXT NOT NULL,
-            data_chegada TEXT,
-            data_entrega TEXT,
-            recebido_por TEXT,
-            data_protocolo TEXT,
-            usuario_cadastro TEXT,
-            usuario_entrega TEXT
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS logs_sistema (
-            id SERIAL PRIMARY KEY,
-            data_hora TEXT NOT NULL,
-            usuario TEXT NOT NULL,
-            acao TEXT NOT NULL,
-            detalhes TEXT
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            nome_completo TEXT NOT NULL,
-            perfil TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("SELECT COUNT(*) FROM usuarios")
-    if cursor.fetchone()[0] == 0:
-        usuarios_iniciais = [
-            ("admin", "123", "Administrador do Sistema", "admin"),
-            ("atendente1", "123", "Atendente Recepção 1", "atendente"),
-            ("atendente2", "123", "Atendente Recepção 2", "atendente")
-        ]
-        for u, s, n, p in usuarios_iniciais:
-            cursor.execute("""
-                INSERT INTO usuarios (username, senha, nome_completo, perfil)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (username) DO NOTHING
-            """, (u, s, n, p))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-init_db()
+supabase = init_supabase()
 
 def registrar_log(usuario, acao, detalhes=""):
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO logs_sistema (data_hora, usuario, acao, detalhes)
-            VALUES (%s, %s, %s, %s)
-        """, (datetime.now().strftime("%d/%m/%Y %H:%M:%S"), usuario, acao, detalhes))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        supabase.table("logs_sistema").insert({
+            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "usuario": usuario,
+            "acao": acao,
+            "detalhes": detalhes
+        }).execute()
     except Exception:
         pass
 
@@ -248,7 +187,7 @@ if not st.session_state.autenticado:
         st.markdown("""
             <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 15px; margin-bottom: 25px;">
                 <p class="header-title" style="font-size: 24px !important;">Secretaria Municipal de Saúde de Teixeiras</p>
-                <p class="header-subtitle">Acesso Restrito - Nuvem Segura (Supabase)</p>
+                <p class="header-subtitle">Acesso Restrito - Nuvem Segura (Supabase API)</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -261,23 +200,22 @@ if not st.session_state.autenticado:
             btn_login = st.form_submit_button("Entrar no Sistema", use_container_width=True)
 
             if btn_login:
-                conn_l = get_connection()
-                cursor_l = conn_l.cursor()
-                cursor_l.execute("SELECT senha, nome_completo, perfil FROM usuarios WHERE username = %s", (user_input.strip(),))
-                res = cursor_l.fetchone()
-                cursor_l.close()
-                conn_l.close()
+                try:
+                    res = supabase.table("usuarios").select("*").eq("username", user_input.strip()).execute()
+                    dados_user = res.data
 
-                if res and res[0] == senha_input:
-                    st.session_state.autenticado = True
-                    st.session_state.usuario_atual = user_input.strip()
-                    st.session_state.nome_usuario = res[1]
-                    st.session_state.perfil_atual = res[2]
-                    registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
-                    st.success("Login realizado com sucesso!")
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
+                    if dados_user and dados_user[0]["senha"] == senha_input:
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_atual = user_input.strip()
+                        st.session_state.nome_usuario = dados_user[0]["nome_completo"]
+                        st.session_state.perfil_atual = dados_user[0]["perfil"]
+                        registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
+                        st.success("Login realizado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Usuário ou senha incorretos.")
+                except Exception as e:
+                    st.error(f"Erro ao conectar com a nuvem: {e}")
     st.stop()
 
 # ==========================================
@@ -411,24 +349,17 @@ with tab1:
                 data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
                 data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                 try:
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT INTO exames (protocolo, data_coleta, nome_paciente, tipo_exame, status, recebido_por, data_protocolo, usuario_cadastro)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        num_protocolo,
-                        data_coleta_str,
-                        nome_paciente,
-                        tipo_exame,
-                        "Pronto para entrega",
-                        "",
-                        data_protocolo_str,
-                        st.session_state.nome_usuario
-                    ))
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
+                    supabase.table("exames").insert({
+                        "protocolo": num_protocolo,
+                        "data_coleta": data_coleta_str,
+                        "nome_paciente": nome_paciente,
+                        "tipo_exame": tipo_exame,
+                        "status": "Pronto para entrega",
+                        "recebido_por": "",
+                        "data_protocolo": data_protocolo_str,
+                        "usuario_cadastro": st.session_state.nome_usuario,
+                        "usuario_entrega": ""
+                    }).execute()
 
                     registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente}")
 
@@ -451,27 +382,27 @@ with tab2:
     st.session_state.busca_termo = busca_input
 
     if busca_input:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM exames WHERE nome_paciente ILIKE %s ORDER BY id DESC", (f"%{busca_input}%",))
-        registros = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        try:
+            res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input}%").order("id", desc=True).execute()
+            registros = res_busca.data
+        except Exception as e:
+            registros = []
+            st.error(f"Erro na busca: {e}")
 
         if registros:
             st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
             for reg in registros:
-                id_reg = reg[0]
-                protocolo = reg[1]
-                data_coleta = reg[2]
-                nome_paciente = reg[3]
-                tipo_exame = reg[4]
-                status_atual = reg[5] if reg[5] else "Pronto para entrega"
-                data_entrega_db = reg[7] or ""
-                recebido_por_db = reg[8] or ""
-                data_protocolo = reg[9] or "N/D"
-                usr_cad = reg[10] or "N/D"
-                usr_ent = reg[11] or "N/D"
+                id_reg = reg["id"]
+                protocolo = reg["protocolo"]
+                data_coleta = reg["data_coleta"]
+                nome_paciente = reg["nome_paciente"]
+                tipo_exame = reg["tipo_exame"]
+                status_atual = reg["status"] if reg["status"] else "Pronto para entrega"
+                data_entrega_db = reg["data_entrega"] or ""
+                recebido_por_db = reg["recebido_por"] or ""
+                data_protocolo = reg["data_protocolo"] or "N/D"
+                usr_cad = reg["usuario_cadastro"] or "N/D"
+                usr_ent = reg["usuario_entrega"] or "N/D"
 
                 with st.container():
                     st.markdown(f"""
@@ -524,19 +455,20 @@ with tab2:
                                 novo_status = "Exame retirado"
                                 d_entrega = datetime.now().strftime("%d/%m/%Y")
 
-                                conn = get_connection()
-                                cursor = conn.cursor()
-                                cursor.execute("""
-                                    UPDATE exames SET status = %s, data_entrega = %s, recebido_por = %s, usuario_entrega = %s WHERE id = %s
-                                """, (novo_status, d_entrega, recebido_por_input.strip(), st.session_state.nome_usuario, id_reg))
-                                conn.commit()
-                                cursor.close()
-                                conn.close()
+                                try:
+                                    supabase.table("exames").update({
+                                        "status": novo_status,
+                                        "data_entrega": d_entrega,
+                                        "recebido_por": recebido_por_input.strip(),
+                                        "usuario_entrega": st.session_state.nome_usuario
+                                    }).eq("id", id_reg).execute()
 
-                                registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
+                                    registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
 
-                                st.success("✅ Exame concluído com sucesso! Atualizando visualização...")
-                                st.rerun()
+                                    st.success("✅ Exame concluído com sucesso! Atualizando visualização...")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Erro ao atualizar: {e}")
                             else:
                                 st.warning("Por favor, preencha o nome de quem está retirando o exame.")
 
@@ -547,12 +479,16 @@ with tab2:
 # ABA 3: Relatórios
 with tab3:
     st.markdown("### 📊 Relatório Geral do Sistema")
-    conn = get_connection()
-    df = pd.read_sql("SELECT * FROM exames", conn)
-    conn.close()
+    try:
+        res_exames = supabase.table("exames").select("*").order("id", desc=True).execute()
+        df = pd.DataFrame(res_exames.data)
+    except Exception:
+        df = pd.DataFrame()
+
     st.dataframe(df, use_container_width=True)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
+    if not df.empty:
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 
 # ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":
@@ -581,40 +517,40 @@ if st.session_state.perfil_atual == "admin":
             if btn_salvar_novo_user:
                 if novo_user_log and novo_user_senha and novo_user_nome:
                     try:
-                        conn = get_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO usuarios (username, senha, nome_completo, perfil)
-                            VALUES (%s, %s, %s, %s)
-                        """, (novo_user_log.strip(), novo_user_senha, novo_user_nome.strip(), novo_user_perfil))
-                        conn.commit()
-                        cursor.close()
-                        conn.close()
+                        supabase.table("usuarios").insert({
+                            "username": novo_user_log.strip(),
+                            "senha": novo_user_senha,
+                            "nome_completo": novo_user_nome.strip(),
+                            "perfil": novo_user_perfil
+                        }).execute()
 
                         registrar_log(st.session_state.usuario_atual, "CRIACAO_USUARIO", f"Criado usuário {novo_user_log.strip()} com perfil {novo_user_perfil}")
 
                         st.session_state.form_user_version += 1
                         st.success(f"🎉 Usuário criado com sucesso! O login **{novo_user_log.strip()}** já está ativo no sistema.")
                         st.rerun()
-                    except psycopg2.errors.UniqueViolation:
-                        st.error("Este nome de usuário já existe no sistema.")
                     except Exception as e:
-                        st.error(f"Erro: {e}")
+                        st.error(f"Erro (verifique se o usuário já existe): {e}")
                 else:
                     st.warning("Preencha todos os campos do novo usuário antes de confirmar.")
 
         st.markdown("---")
         st.markdown("### 📋 Usuários Cadastrados no Sistema")
-        conn = get_connection()
-        df_usuarios = pd.read_sql("SELECT id, username, nome_completo, perfil FROM usuarios", conn)
-        conn.close()
+        try:
+            res_users = supabase.table("usuarios").select("id, username, nome_completo, perfil").execute()
+            df_usuarios = pd.DataFrame(res_users.data)
+        except Exception:
+            df_usuarios = pd.DataFrame()
         st.dataframe(df_usuarios, use_container_width=True)
 
         st.markdown("---")
         st.markdown("### 🛠️ Ferramentas de Auditoria e Logs")
-        conn = get_connection()
-        df_logs = pd.read_sql("SELECT * FROM logs_sistema ORDER BY id DESC", conn)
-        conn.close()
+        try:
+            res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).execute()
+            df_logs = pd.DataFrame(res_logs.data)
+        except Exception:
+            df_logs = pd.DataFrame()
         st.dataframe(df_logs, use_container_width=True)
-        csv_logs = df_logs.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Baixar Logs de Auditoria (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")
+        if not df_logs.empty:
+            csv_logs = df_logs.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Baixar Logs de Auditoria (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")

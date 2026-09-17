@@ -221,7 +221,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DE PDF DUAS VIAS
+# 3. GERAÇÃO DE PDFS (COMPROVANTE E ETIQUETAS)
 # ==========================================
 class PDFProtocoloDuasVias(FPDF):
     pass
@@ -281,6 +281,60 @@ def gerar_pdf_protocolo(dados):
 
     return pdf.output(dest="S").encode("latin1")
 
+def gerar_pdf_etiquetas_lote(lista_exames):
+    """Gera um PDF em formato A4 contendo blocos de etiquetas (5 por página)"""
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False, margin=10)
+    
+    contador = 0
+    for ex in lista_exames:
+        if contador % 5 == 0:
+            pdf.add_page()
+            # Cabeçalho discreto da folha de etiquetas
+            pdf.set_font("Arial", "B", 9)
+            pdf.set_text_color(30, 58, 138)
+            pdf.cell(0, 6, "SECRETARIA MUNICIPAL DE SAÚDE DE TEIXEIRAS - RELAÇÃO DE ETIQUETAS DE EXAMES", border=0, ln=True, align="C")
+            pdf.ln(4)
+
+        # Desenha a etiqueta individual (bloco)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_draw_color(30, 58, 138)
+        pdf.set_line_width(0.4)
+        
+        # Bloco de etiqueta: largura 190mm, altura 42mm
+        pdf.rect(10, pdf.get_y(), 190, 40, style="DF")
+        
+        # Conteúdo interno da etiqueta
+        pdf.set_xy(12, pdf.get_y() + 3)
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_text_color(30, 58, 138)
+        pdf.cell(130, 6, f"PROTOCOLO: {ex.get('protocolo', '')}", border=0)
+        
+        pdf.set_font("Arial", "B", 9)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(50, 6, f"Data Coleta: {ex.get('data_coleta', '')}", border=0, align="R", ln=True)
+        
+        pdf.set_x(12)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.set_text_color(71, 85, 105)
+        pdf.cell(20, 6, "PACIENTE:", border=0)
+        pdf.set_font("Arial", "B", 11)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(158, 6, f"{ex.get('nome_paciente', '')}", border=0, ln=True)
+        
+        pdf.set_x(12)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.set_text_color(71, 85, 105)
+        pdf.cell(20, 6, "EXAME:", border=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.set_text_color(15, 23, 42)
+        pdf.multi_cell(158, 6, f"{ex.get('tipo_exame', '')}", border=0)
+        
+        pdf.ln(6) # Espaçamento entre as etiquetas da página
+        contador += 1
+
+    return pdf.output(dest="S").encode("latin1")
+
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
@@ -329,7 +383,6 @@ else:
 with tab1:
     st.markdown("### 📝 Registrar Novo Exame Coletado")
 
-    # Busca lista de exames cadastrados no Supabase
     try:
         res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
         lista_exames_cadastrados = [t["nome"] for t in res_tipos.data] if res_tipos.data else []
@@ -364,7 +417,6 @@ with tab1:
         submitted = st.form_submit_button("💾 Salvar Registro de Exame")
 
         if submitted:
-            # Define qual tipo de exame vai ser usado
             tipo_exame_final = ""
             if exame_novo_input.strip():
                 tipo_exame_final = exame_novo_input.strip()
@@ -377,7 +429,6 @@ with tab1:
                 data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                 
                 try:
-                    # 1. Salva o exame na tabela principal
                     supabase.table("exames").insert({
                         "protocolo": num_protocolo,
                         "data_coleta": data_coleta_str,
@@ -390,12 +441,11 @@ with tab1:
                         "usuario_entrega": ""
                     }).execute()
 
-                    # 2. Se for um exame novo digitado, cadastra automaticamente na tabela de tipos para aparecer nas próximas vezes!
                     if exame_novo_input.strip():
                         try:
                             supabase.table("tipos_exames").insert({"nome": exame_novo_input.strip()}).execute()
                         except Exception:
-                            pass # Ignora se já existir
+                            pass
 
                     registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente} ({tipo_exame_final})")
 
@@ -405,7 +455,26 @@ with tab1:
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
             else:
-                st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame (selecionando na lista ou digitando um novo).")
+                st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame.")
+
+    st.markdown("---")
+    st.markdown("### 🏷️ Geração de Etiquetas em Lote (Últimos Cadastros do Dia)")
+    if st.button("📄 Gerar PDF com Etiquetas (5 por página dos Exames Pendentes Recentes)"):
+        try:
+            res_pendentes = supabase.table("exames").select("*").eq("status", "Pronto para entrega").order("id", desc=True).limit(20).execute()
+            pendentes = res_pendentes.data
+            if pendentes:
+                pdf_etq = gerar_pdf_etiquetas_lote(pendentes)
+                st.download_button(
+                    label="📥 Baixar Arquivo PDF de Etiquetas",
+                    data=pdf_etq,
+                    file_name=f"etiquetas_exames_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf"
+                )
+            else:
+                st.info("Nenhum exame pendente encontrado para gerar etiquetas.")
+        except Exception as e:
+            st.error(f"Erro ao gerar etiquetas: {e}")
 
 # ABA 2: Entregar Exames
 with tab2:

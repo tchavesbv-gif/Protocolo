@@ -279,7 +279,11 @@ def gerar_pdf_protocolo(dados):
     pdf.ln(4)
     desenhar_via("VIA DE CONTROLE")
 
-    return pdf.output(dest="S").encode("latin1")
+    # Retorno compatível com fpdf2 atualizado
+    output = pdf.output()
+    if isinstance(output, str):
+        return output.encode("latin1")
+    return bytes(output)
 
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA

@@ -221,7 +221,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DE PDFS (COMPROVANTE DUAS VIAS)
+# 3. GERAÇÃO DE PDFS (COMPROVANTES E ETIQUETAS)
 # ==========================================
 class PDFProtocoloDuasVias(FPDF):
     pass
@@ -279,7 +279,52 @@ def gerar_pdf_protocolo(dados):
     pdf.ln(4)
     desenhar_via("VIA DE CONTROLE")
 
-    # Retorno compatível com fpdf2 atualizado
+    output = pdf.output()
+    if isinstance(output, str):
+        return output.encode("latin1")
+    return bytes(output)
+
+def gerar_pdf_etiquetas(lista_etiquetas):
+    """Gera PDF otimizado em formato de etiquetas (várias por página A4)"""
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=10)
+    pdf.add_page()
+    
+    # Configuração de grade para etiquetas (ex: blocos organizados na página)
+    # Vamos criar blocos retangulares estilo etiqueta na página A4
+    for i, item in enumerate(lista_etiquetas):
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_text_color(30, 58, 138)
+        pdf.cell(0, 6, f"SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DE EXAME", ln=True, align="C")
+        
+        pdf.set_font("Arial", "B", 9)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(30, 5, "Protocolo:", border=0)
+        pdf.set_font("Arial", "", 9)
+        pdf.cell(0, 5, f"{item['protocolo']}", ln=True)
+
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(30, 5, "Paciente:", border=0)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 5, f"{item['nome_paciente']}", ln=True)
+
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(30, 5, "Tipo de Exame:", border=0)
+        pdf.set_font("Arial", "", 9)
+        pdf.cell(0, 5, f"{item['tipo_exame']}", ln=True)
+
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(30, 5, "Data Coleta:", border=0)
+        pdf.set_font("Arial", "", 9)
+        pdf.cell(0, 5, f"{item['data_coleta']}", ln=True)
+
+        # Linha pontilhada / separadora entre etiquetas
+        pdf.set_font("Arial", "I", 8)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 6, "-" * 85, ln=True, align="C")
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
+
     output = pdf.output()
     if isinstance(output, str):
         return output.encode("latin1")
@@ -328,6 +373,10 @@ if st.session_state.perfil_atual == "admin":
     tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo Protocolo", "📦 Entregar Exames", "📊 Relatórios", "⚙️ Manutenção & Logs"])
 else:
     tab1, tab2, tab3 = st.tabs(["➕ Novo Protocolo", "📦 Entregar Exames", "📊 Relatórios"])
+
+# Inicializar lista temporária na sessão para as etiquetas do lote recente
+if "lote_etiquetas" not in st.session_state:
+    st.session_state.lote_etiquetas = []
 
 # ABA 1: Novo Protocolo
 with tab1:
@@ -397,6 +446,14 @@ with tab1:
                         except Exception:
                             pass
 
+                    # Acumular para a folha de etiquetas do lote atual
+                    st.session_state.lote_etiquetas.append({
+                        "protocolo": num_protocolo,
+                        "nome_paciente": nome_paciente,
+                        "tipo_exame": tipo_exame_final,
+                        "data_coleta": data_coleta_str
+                    })
+
                     registrar_log(st.session_state.usuario_atual, "NOVO_PROTOCOLO", f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente} ({tipo_exame_final})")
 
                     st.session_state.form_version += 1
@@ -406,6 +463,32 @@ with tab1:
                     st.error(f"Erro ao salvar: {e}")
             else:
                 st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame.")
+
+    # Seção de gerenciamento do lote recente de etiquetas acumuladas
+    if st.session_state.lote_etiquetas:
+        st.markdown("---")
+        st.markdown(f"### 🏷️ Lote de Etiquetas Recentes ({len(st.session_state.lote_etiquetas)} acumulados)")
+        st.info("Você pode continuar cadastrando novos exames acima ou gerar o PDF com os exames acumulados abaixo.")
+
+        col_lb1, col_lb2 = st.columns(2)
+        with col_lb1:
+            pdf_etiquetas_bytes = gerar_pdf_etiquetas(st.session_state.lote_etiquetas)
+            st.download_button(
+                label=f"📄 GERAR FOLHA DE ETIQUETAS DO LOTE ({len(st.session_state.lote_etiquetas)} itens)",
+                data=pdf_etiquetas_bytes,
+                file_name=f"etiquetas_lote_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                mime="application/pdf",
+                key="btn_baixar_lote_etiquetas"
+            )
+        with col_lb2:
+            if st.button("🗑️ Limpar / Iniciar Novo Lote de Etiquetas", key="btn_limpar_lote"):
+                st.session_state.lote_etiquetas = []
+                st.success("Lote limpo! Pronto para acumular novos exames.")
+                st.rerun()
+
+        # Exibir tabela resumida do lote atual na tela
+        df_lote = pd.DataFrame(st.session_state.lote_etiquetas)
+        st.dataframe(df_lote[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]], use_container_width=True)
 
 # ABA 2: Entregar Exames
 with tab2:

@@ -285,14 +285,11 @@ def gerar_pdf_protocolo(dados):
     return bytes(output)
 
 def gerar_pdf_etiquetas(lista_etiquetas):
-    """Gera PDF otimizado em formato de etiquetas (várias por página A4)"""
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
     
-    # Configuração de grade para etiquetas (ex: blocos organizados na página)
-    # Vamos criar blocos retangulares estilo etiqueta na página A4
-    for i, item in enumerate(lista_etiquetas):
+    for item in lista_etiquetas:
         pdf.set_font("Arial", "B", 10)
         pdf.set_text_color(30, 58, 138)
         pdf.cell(0, 6, f"SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DE EXAME", ln=True, align="C")
@@ -318,7 +315,6 @@ def gerar_pdf_etiquetas(lista_etiquetas):
         pdf.set_font("Arial", "", 9)
         pdf.cell(0, 5, f"{item['data_coleta']}", ln=True)
 
-        # Linha pontilhada / separadora entre etiquetas
         pdf.set_font("Arial", "I", 8)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 6, "-" * 85, ln=True, align="C")
@@ -374,7 +370,6 @@ if st.session_state.perfil_atual == "admin":
 else:
     tab1, tab2, tab3 = st.tabs(["➕ Novo Protocolo", "📦 Entregar Exames", "📊 Relatórios"])
 
-# Inicializar lista temporária na sessão para as etiquetas do lote recente
 if "lote_etiquetas" not in st.session_state:
     st.session_state.lote_etiquetas = []
 
@@ -437,7 +432,8 @@ with tab1:
                         "recebido_por": "",
                         "data_protocolo": data_protocolo_str,
                         "usuario_cadastro": st.session_state.nome_usuario,
-                        "usuario_entrega": ""
+                        "usuario_entrega": "",
+                        "comprovante_url": ""
                     }).execute()
 
                     if exame_novo_input.strip():
@@ -446,7 +442,6 @@ with tab1:
                         except Exception:
                             pass
 
-                    # Acumular para a folha de etiquetas do lote atual
                     st.session_state.lote_etiquetas.append({
                         "protocolo": num_protocolo,
                         "nome_paciente": nome_paciente,
@@ -464,7 +459,6 @@ with tab1:
             else:
                 st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame.")
 
-    # Seção de gerenciamento do lote recente de etiquetas acumuladas
     if st.session_state.lote_etiquetas:
         st.markdown("---")
         st.markdown(f"### 🏷️ Lote de Etiquetas Recentes ({len(st.session_state.lote_etiquetas)} acumulados)")
@@ -486,13 +480,12 @@ with tab1:
                 st.success("Lote limpo! Pronto para acumular novos exames.")
                 st.rerun()
 
-        # Exibir tabela resumida do lote atual na tela
         df_lote = pd.DataFrame(st.session_state.lote_etiquetas)
         st.dataframe(df_lote[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]], use_container_width=True)
 
 # ABA 2: Entregar Exames
 with tab2:
-    st.markdown("### 📦 Gerenciar e Entregar Exames")
+    st.markdown("### 📦 Gerenciar, Entregar e Arquivar Comprovantes")
 
     if "busca_termo" not in st.session_state:
         st.session_state.busca_termo = ""
@@ -522,6 +515,7 @@ with tab2:
                 data_protocolo = reg["data_protocolo"] or "N/D"
                 usr_cad = reg["usuario_cadastro"] or "N/D"
                 usr_ent = reg["usuario_entrega"] or "N/D"
+                comprovante_url = reg.get("comprovante_url", "")
 
                 with st.container():
                     st.markdown(f"""
@@ -536,13 +530,55 @@ with tab2:
                         col_st1, col_st2 = st.columns(2)
                         with col_st1:
                             st.markdown('<div class="status-badge-verde">✔️ Exame retirado</div>', unsafe_allow_html=True)
-                        with col_st2:
                             st.markdown(f"""
-                                <div class="info-retirada-box">
+                                <div class="info-retirada-box" style="margin-top: 10px;">
                                     👤 Retirado por: <b>{recebido_por_db}</b><br>
                                     📅 Data: <b>{data_entrega_db}</b> | Entregue por: <b>{usr_ent}</b>
                                 </div>
                             """, unsafe_allow_html=True)
+                        with col_st2:
+                            st.markdown("##### 📁 Arquivo do Comprovante Assinado")
+                            if comprovante_url:
+                                st.success("✅ Comprovante escaneado e arquivado!")
+                                st.markdown(f"[🔗 Abrir Comprovante Arquivado]({comprovante_url})", unsafe_allow_html=True)
+                            else:
+                                st.warning("⚠️ Nenhum comprovante escaneado enviado ainda.")
+                                
+                                # Upload do comprovante assinado
+                                arquivo_upload = st.file_uploader(
+                                    f"Enviar Comprovante Assinado (PDF ou Imagem) - {protocolo}", 
+                                    type=["pdf", "png", "jpg", "jpeg"], 
+                                    key=f"upl_{id_reg}"
+                                )
+                                
+                                if arquivo_upload is not None:
+                                    if st.button("📤 Enviar e Salvar Comprovante", key=f"btn_env_{id_reg}"):
+                                        with st.spinner("Enviando para o Supabase Storage..."):
+                                            try:
+                                                file_bytes = arquivo_upload.getvalue()
+                                                file_ext = arquivo_upload.name.split(".")[-1]
+                                                file_path = f"comprovantes/{protocolo}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
+                                                
+                                                # Enviar para o bucket 'comprovantes'
+                                                supabase.storage.from_("comprovantes").upload(
+                                                    file_path, 
+                                                    file_bytes, 
+                                                    file_options={"content-type": arquivo_upload.type}
+                                                )
+                                                
+                                                # Obter URL pública
+                                                public_url_res = supabase.storage.from_("comprovantes").get_public_url(file_path)
+                                                
+                                                # Salvar URL na tabela
+                                                supabase.table("exames").update({
+                                                    "comprovante_url": public_url_res
+                                                }).eq("id", id_reg).execute()
+
+                                                registrar_log(st.session_state.usuario_atual, "UPLOAD_COMPROVANTE", f"Comprovante assinado do protocolo {protocolo} arquivado.")
+                                                st.success("🎉 Comprovante arquivado com sucesso!")
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Erro ao enviar arquivo: {e}")
 
                         st.markdown("---")
                         dados_pdf = {

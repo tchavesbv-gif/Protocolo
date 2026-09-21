@@ -262,7 +262,7 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF MULTI-EXAME (LOTE ÚNICO COM FONTE MAIOR)
+# 3. GERAÇÃO DO PDF MULTI-EXAME (UMA VIA - FONTES EQUILIBRADAS/INTERMEDIÁRIAS)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
@@ -274,49 +274,49 @@ def gerar_pdf_lote(lista_dados):
     for dados in lista_dados:
         pdf.add_page()
         
-        # --- BLOCO 1: ETIQUETA DO ENVELOPE (FONTE AUMENTADA) ---
-        pdf.set_font("Arial", "B", 11)
+        # --- BLOCO 1: ETIQUETA DO ENVELOPE (FONTE REDUZIDA/INTERMEDIÁRIA) ---
+        pdf.set_font("Arial", "B", 9.5)
         pdf.set_text_color(30, 58, 138)
-        pdf.cell(0, 6, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+        pdf.cell(0, 5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
         pdf.ln(2)
         
-        pdf.set_font("Arial", "B", 10)
+        pdf.set_font("Arial", "B", 8.5)
         pdf.set_text_color(0, 0, 0)
-        pdf.cell(26, 6, "Protocolo:", border=0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, f"{dados['protocolo']}", ln=True)
+        pdf.cell(24, 5, "Protocolo:", border=0)
+        pdf.set_font("Arial", "B", 9.5)
+        pdf.cell(0, 5, f"{dados['protocolo']}", ln=True)
         
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(26, 6, "Paciente:", border=0)
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, f"{dados['nome_paciente']}", ln=True)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.cell(24, 5, "Paciente:", border=0)
+        pdf.set_font("Arial", "B", 9.5)
+        pdf.cell(0, 5, f"{dados['nome_paciente']}", ln=True)
         
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(26, 6, "Tipo Exame:", border=0)
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 6, f"{dados['tipo_exame']}", ln=True)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.cell(24, 5, "Tipo Exame:", border=0)
+        pdf.set_font("Arial", "", 8.5)
+        pdf.cell(0, 5, f"{dados['tipo_exame']}", ln=True)
         
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(26, 6, "Coleta:", border=0)
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 6, f"{dados['data_coleta']}", ln=True)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.cell(24, 5, "Coleta:", border=0)
+        pdf.set_font("Arial", "", 8.5)
+        pdf.cell(0, 5, f"{dados['data_coleta']}", ln=True)
         
-        pdf.ln(3)
-        pdf.set_font("Arial", "I", 8)
+        pdf.ln(2)
+        pdf.set_font("Arial", "I", 7.5)
         pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 5, "-" * 72, ln=True, align="C")
+        pdf.cell(0, 4, "-" * 75, ln=True, align="C")
         pdf.set_text_color(0, 0, 0)
-        pdf.ln(3)
+        pdf.ln(2)
 
         # --- BLOCO 2: COMPROVANTE ÚNICO (ASSINATURA E DIGITALIZAÇÃO) ---
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
-        pdf.ln(5)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.cell(0, 4.5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
+        pdf.ln(4)
         
         pdf.set_fill_color(30, 58, 138)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", "B", 9.5)
-        pdf.cell(0, 6, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
+        pdf.set_font("Arial", "B", 8.5)
+        pdf.cell(0, 5.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
         pdf.set_text_color(0, 0, 0)
         
         campos = [
@@ -326,28 +326,28 @@ def gerar_pdf_lote(lista_dados):
         ]
         
         for rot1, val1, rot2, val2 in campos:
-            pdf.set_font("Arial", "B", 8.5)
-            pdf.cell(22, 6, rot1, border=1)
-            pdf.set_font("Arial", "", 8.5)
-            pdf.cell(55, 6, str(val1), border=1)
+            pdf.set_font("Arial", "B", 8)
+            pdf.cell(20, 5.5, rot1, border=1)
+            pdf.set_font("Arial", "", 8)
+            pdf.cell(57, 5.5, str(val1), border=1)
             if rot2:
-                pdf.set_font("Arial", "B", 8.5)
-                pdf.cell(24, 6, rot2, border=1)
-                pdf.set_font("Arial", "", 8.5)
-                pdf.cell(33, 6, str(val2), border=1, ln=True)
+                pdf.set_font("Arial", "B", 8)
+                pdf.cell(22, 5.5, rot2, border=1)
+                pdf.set_font("Arial", "", 8)
+                pdf.cell(29, 5.5, str(val2), border=1, ln=True)
             else:
-                pdf.ln(6)
+                pdf.ln(5.5)
                 
-        pdf.ln(5)
-        pdf.set_font("Arial", "I", 7.5)
-        pdf.multi_cell(0, 4, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
-        pdf.ln(12)
+        pdf.ln(3)
+        pdf.set_font("Arial", "I", 7)
+        pdf.multi_cell(0, 3.5, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
+        pdf.ln(8)
         
-        pdf.set_font("Arial", "", 8.5)
-        pdf.cell(67, 5, "_" * 32, align="C")
-        pdf.cell(67, 5, "_" * 32, align="C", ln=True)
-        pdf.cell(67, 5, "Assinatura do Paciente / Responsável", align="C")
-        pdf.cell(67, 5, "Assinatura / Carimbo Atendente", align="C", ln=True)
+        pdf.set_font("Arial", "", 8)
+        pdf.cell(64, 4, "_" * 30, align="C")
+        pdf.cell(64, 4, "_" * 30, align="C", ln=True)
+        pdf.cell(64, 4, "Assinatura do Paciente / Responsável", align="C")
+        pdf.cell(64, 4, "Assinatura / Carimbo Atendente", align="C", ln=True)
         
     output = pdf.output(dest="S")
     if isinstance(output, str):

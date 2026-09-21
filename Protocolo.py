@@ -478,23 +478,39 @@ with tab1:
                 st.success("Lote limpo com sucesso! Pronto para novos cadastros.")
                 st.rerun()
 
-# ABA 2: Entregar Exames
+# ABA 2: Entregar Exames (Com botão de Buscar explícito)
 with tab2:
     st.markdown("### Gerenciar, Entregar e Arquivar Comprovantes")
-    if "busca_termo" not in st.session_state:
-        st.session_state.busca_termo = ""
-        
-    busca_input = st.text_input("Digite o Nome do Paciente para Buscar:", value=st.session_state.busca_termo, key="input_busca_paciente")
-    st.session_state.busca_termo = busca_input
     
-    if busca_input:
-        try:
-            res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input}%").order("id", desc=True).execute()
-            registros = res_busca.data
-        except Exception as e:
-            registros = []
-            st.error(f"Erro na busca: {e}")
+    if "termo_busca_executado" not in st.session_state:
+        st.session_state.termo_busca_executado = ""
+    if "registros_encontrados" not in st.session_state:
+        st.session_state.registros_encontrados = None
+
+    with st.form("form_busca_entregar"):
+        col_b1, col_b2 = st.columns([4, 1])
+        with col_b1:
+            busca_input = st.text_input("Digite o Nome do Paciente para Buscar:", value=st.session_state.termo_busca_executado)
+        with col_b2:
+            st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
+            btn_executar_busca = st.form_submit_button("🔍 Buscar Paciente", use_container_width=True)
             
+        if btn_executar_busca:
+            st.session_state.termo_busca_executado = busca_input
+            if busca_input.strip():
+                try:
+                    res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
+                    st.session_state.registros_encontrados = res_busca.data
+                except Exception as e:
+                    st.session_state.registros_encontrados = []
+                    st.error(f"Erro na busca: {e}")
+            else:
+                st.session_state.registros_encontrados = []
+                st.warning("Digite um nome para realizar a busca.")
+
+    # Exibição dos resultados salvos na sessão para a Aba 2
+    if st.session_state.registros_encontrados is not None:
+        registros = st.session_state.registros_encontrados
         if registros:
             st.markdown(f"**Encontrado(s) {len(registros)} registro(s):**")
             for reg in registros:
@@ -616,19 +632,51 @@ with tab2:
         else:
             st.warning("Nenhum exame encontrado com este nome.")
 
-# ABA 3: Relatórios
+# ABA 3: Relatórios (Com filtros opcionais por data/paciente e botão de Buscar)
 with tab3:
-    st.markdown("### Relatório Geral do Sistema")
-    try:
-        res_exames = supabase.table("exames").select("*").order("id", desc=True).execute()
-        df = pd.DataFrame(res_exames.data)
-    except Exception:
-        df = pd.DataFrame()
-        
-    st.dataframe(df, use_container_width=True)
-    if not df.empty:
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Baixar Relatório em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
+    st.markdown("### Relatório Geral e Filtros do Sistema")
+    
+    if "df_relatorio_filtrado" not in st.session_state:
+        st.session_state.df_relatorio_filtrado = None
+
+    with st.form("form_filtro_relatorios"):
+        col_f1, col_f2, col_f3 = st.columns([3, 2, 1])
+        with col_f1:
+            filtro_nome = st.text_input("Filtrar por Nome do Paciente (Opcional)", value="")
+        with col_f2:
+            filtro_status = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"])
+        with col_f3:
+            st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
+            btn_filtrar_rel = st.form_submit_button("🔍 Filtrar Relatório", use_container_width=True)
+            
+        if btn_filtrar_rel:
+            try:
+                query = supabase.table("exames").select("*")
+                if filtro_nome.strip():
+                    query = query.ilike("nome_paciente", f"%{filtro_nome.strip()}%")
+                if filtro_status != "Todos":
+                    query = query.eq("status", filtro_status)
+                
+                res_rel = query.order("id", desc=True).execute()
+                st.session_state.df_relatorio_filtrado = pd.DataFrame(res_rel.data)
+            except Exception as e:
+                st.session_state.df_relatorio_filtrado = pd.DataFrame()
+                st.error(f"Erro ao gerar relatório: {e}")
+
+    # Se ainda não buscou nada, carrega o relatório completo por padrão
+    if st.session_state.df_relatorio_filtrado is None:
+        try:
+            res_exames = supabase.table("exames").select("*").order("id", desc=True).execute()
+            st.session_state.df_relatorio_filtrado = pd.DataFrame(res_exames.data)
+        except Exception:
+            st.session_state.df_relatorio_filtrado = pd.DataFrame()
+
+    df_rel = st.session_state.df_relatorio_filtrado
+    st.dataframe(df_rel, use_container_width=True)
+    
+    if not df_rel.empty:
+        csv = df_rel.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Baixar Relatório Filtrado em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
 
 # ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":
@@ -682,14 +730,40 @@ if st.session_state.perfil_atual == "admin":
         st.dataframe(df_usuarios, use_container_width=True)
         
         st.markdown("---")
-        st.markdown("### Ferramentas de Auditoria e Logs")
-        try:
-            res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).execute()
-            df_logs = pd.DataFrame(res_logs.data)
-        except Exception:
-            df_logs = pd.DataFrame()
-            
+        st.markdown("### Ferramentas de Auditoria e Logs (Com Filtro por Usuário/Ação)")
+        
+        if "df_logs_filtrados" not in st.session_state:
+            st.session_state.df_logs_filtrados = None
+
+        with st.form("form_filtro_logs"):
+            col_l1, col_l2 = st.columns([3, 1])
+            with col_l1:
+                filtro_log_usuario = st.text_input("Filtrar logs por Usuário (Opcional)", value="")
+            with col_l2:
+                st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
+                btn_buscar_logs = st.form_submit_button("🔍 Buscar Logs", use_container_width=True)
+                
+            if btn_buscar_logs:
+                try:
+                    q_log = supabase.table("logs_sistema").select("*")
+                    if filtro_log_usuario.strip():
+                        q_log = q_log.ilike("usuario", f"%{filtro_log_usuario.strip()}%")
+                    res_l = q_log.order("id", desc=True).execute()
+                    st.session_state.df_logs_filtrados = pd.DataFrame(res_l.data)
+                except Exception as e:
+                    st.session_state.df_logs_filtrados = pd.DataFrame()
+                    st.error(f"Erro ao buscar logs: {e}")
+
+        if st.session_state.df_logs_filtrados is None:
+            try:
+                res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).execute()
+                st.session_state.df_logs_filtrados = pd.DataFrame(res_logs.data)
+            except Exception:
+                st.session_state.df_logs_filtrados = pd.DataFrame()
+
+        df_logs = st.session_state.df_logs_filtrados
         st.dataframe(df_logs, use_container_width=True)
+        
         if not df_logs.empty:
             csv_logs = df_logs.to_csv(index=False).encode("utf-8")
-            st.download_button("Baixar Logs de Auditoria (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")
+            st.download_button("📥 Baixar Logs Filtrados (CSV)", csv_logs, "logs_auditoria_teixeiras.csv", "csv")

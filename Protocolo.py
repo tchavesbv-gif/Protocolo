@@ -350,14 +350,14 @@ if st.session_state.perfil_atual == "admin":
     tab1, tab2, tab3, tab4 = st.tabs([
         "➕ Novo Protocolo", 
         "📦 Entregar Exames", 
-        "📊 Relatórios", 
+        "📊 Relatórios & Edição", 
         "⚙️ Manutenção & Logs"
     ])
 else:
     tab1, tab2, tab3 = st.tabs([
         "➕ Novo Protocolo", 
         "📦 Entregar Exames", 
-        "📊 Relatórios"
+        "📊 Relatórios & Edição"
     ])
 
 # ABA 1: Novo Protocolo com Acúmulo em Lote
@@ -508,7 +508,6 @@ with tab2:
                 st.session_state.registros_encontrados = []
                 st.warning("Digite um nome para realizar a busca.")
 
-    # Exibição dos resultados salvos na sessão para a Aba 2
     if st.session_state.registros_encontrados is not None:
         registros = st.session_state.registros_encontrados
         if registros:
@@ -632,9 +631,9 @@ with tab2:
         else:
             st.warning("Nenhum exame encontrado com este nome.")
 
-# ABA 3: Relatórios (Com filtros opcionais por data/paciente e botão de Buscar)
+# ABA 3: Relatórios e Edição de Protocolos
 with tab3:
-    st.markdown("### Relatório Geral e Filtros do Sistema")
+    st.markdown("### Relatório Geral, Filtros e Correção / Edição de Cadastros")
     
     if "df_relatorio_filtrado" not in st.session_state:
         st.session_state.df_relatorio_filtrado = None
@@ -663,7 +662,6 @@ with tab3:
                 st.session_state.df_relatorio_filtrado = pd.DataFrame()
                 st.error(f"Erro ao gerar relatório: {e}")
 
-    # Se ainda não buscou nada, carrega o relatório completo por padrão
     if st.session_state.df_relatorio_filtrado is None:
         try:
             res_exames = supabase.table("exames").select("*").order("id", desc=True).execute()
@@ -677,6 +675,83 @@ with tab3:
     if not df_rel.empty:
         csv = df_rel.to_csv(index=False).encode("utf-8")
         st.download_button("📥 Baixar Relatório Filtrado em CSV", csv, "relatorio_exames_teixeiras.csv", "csv")
+
+    st.markdown("---")
+    st.markdown("### ✏️ Corrigir ou Editar Dados de um Protocolo")
+    st.markdown("Insira o **Número do Protocolo** exato (ex: `TX-2026...`) para buscar e corrigir eventuais erros de digitação.")
+
+    col_ed1, col_ed2 = st.columns([3, 1])
+    with col_ed1:
+        protocolo_busca_edicao = st.text_input("Número do Protocolo para Editar", key="txt_prot_edicao")
+    with col_ed2:
+        st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
+        btn_buscar_edicao = st.button("🔍 Localizar para Edição", use_container_width=True)
+
+    if "registro_em_edicao" not in st.session_state:
+        st.session_state.registro_em_edicao = None
+
+    if btn_buscar_edicao:
+        if protocolo_busca_edicao.strip():
+            try:
+                res_ed = supabase.table("exames").select("*").eq("protocolo", protocolo_busca_edicao.strip()).execute()
+                if res_ed.data:
+                    st.session_state.registro_em_edicao = res_ed.data[0]
+                    st.success("Protocolo localizado! Preencha os campos abaixo com os dados corrigidos.")
+                else:
+                
+                    st.session_state.registro_em_edicao = None
+                    st.warning("Nenhum registro encontrado com este número de protocolo.")
+            except Exception as e:
+                st.error(f"Erro ao buscar protocolo:솥 {e}")
+        else:
+            st.warning("Digite o protocolo para buscar.")
+
+    if st.session_state.registro_em_edicao is not None:
+        reg_edit = st.session_state.registro_em_edicao
+        
+        try:
+            res_tipos_ed = supabase.table("tipos_exames").select("nome").order("nome").execute()
+            lista_exames_ed = [t["nome"] for t in res_tipos_ed.data] if res_tipos_ed.data else []
+        except Exception:
+            lista_exames_ed = []
+
+        with st.form("form_salvar_edicao"):
+            st.markdown(f"**Editando Protocolo:** `{reg_edit['protocolo']}`")
+            
+            novo_prot_input = st.text_input("Número do Protocolo", value=reg_edit["protocolo"])
+            novo_nome_input = st.text_input("Nome do Paciente", value=reg_edit["nome_paciente"])
+            nova_coleta_input = st.text_input("Data da Coleta", value=reg_edit["data_coleta"])
+            
+            exame_atual_db = reg_edit["tipo_exame"]
+            idx_exame = lista_exames_ed.index(exame_atual_db) if exame_atual_db in lista_exames_ed else 0
+            
+            novo_tipo_exame = st.selectbox("Tipo de Exame", lista_exames_ed if lista_exames_ed else [exame_atual_db], index=idx_exame)
+            novo_status = st.selectbox("Status do Exame", ["Pronto para entrega", "Exame retirado"], index=0 if reg_edit["status"] == "Pronto para entrega" else 1)
+            
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+            btn_salvar_alteracoes = st.form_submit_button("💾 Salvar Alterações no Protocolo", use_container_width=True)
+            
+            if btn_salvar_alteracoes:
+                try:
+                    supabase.table("exames").update({
+                        "protocolo": novo_prot_input.strip(),
+                        "nome_paciente": novo_nome_input.strip(),
+                        "data_coleta": nova_coleta_input.strip(),
+                        "tipo_exame": novo_tipo_exame,
+                        "status": novo_status
+                    }).eq("id", reg_edit["id"]).execute()
+                    
+                    registrar_log(
+                        st.session_state.usuario_atual, 
+                        "EDICAO_PROTOCOLO", 
+                        f"Protocolo {reg_edit['protocolo']} atualizado para: Paciente={novo_nome_input.strip()}, Exame={novo_tipo_exame}"
+                    )
+                    st.session_state.registro_em_edicao = None
+                    st.session_state.df_relatorio_filtrado = None # Reseta o cache da tabela
+                    st.success("Dados do protocolo atualizados com sucesso!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar alterações: {e}")
 
 # ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":

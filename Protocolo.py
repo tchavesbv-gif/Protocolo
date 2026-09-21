@@ -132,7 +132,6 @@ div[data-testid="stDateInput"] input {
 # ==========================================
 # 1. CONEXÃO COM O SUPABASE (API REST)
 # ==========================================
-# Dica: Você pode manter hardcoded ou utilizar st.secrets["supabase"]["url"]
 SUPAGE_URL_DEFAULT = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
 SUPAGE_KEY_DEFAULT = "sb_publishable_gd15fFKsaKLYENPqiSLDHg_FMvSa1li"
 
@@ -354,10 +353,20 @@ with col_b_sair:
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
+# Definição das abas com ícones
 if st.session_state.perfil_atual == "admin":
-    tab1, tab2, tab3, tab4 = st.tabs(["Novo Protocolo", "Entregar Exames", "Relatórios", "Manutenção & Logs"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios", 
+        "⚙️ Manutenção & Logs"
+    ])
 else:
-    tab1, tab2, tab3 = st.tabs(["Novo Protocolo", "Entregar Exames", "Relatórios"])
+    tab1, tab2, tab3 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios"
+    ])
 
 if "lote_etiquetas" not in st.session_state:
     st.session_state.lote_etiquetas = []

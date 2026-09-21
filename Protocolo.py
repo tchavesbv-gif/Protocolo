@@ -40,10 +40,10 @@ st.markdown("""
     margin: 4px 0 0 0 !important;
 }
 .header-user-info {
-    font-size: 14px !important;
+    font-size: 15px !important;
     color: #f1f5f9 !important;
     text-align: right;
-    margin: 0 0 4px 0;
+    margin: 0 0 8px 0;
     font-weight: 600;
 }
 div[data-testid="stButton"] button {
@@ -310,7 +310,7 @@ def gerar_pdf_lote(lista_dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-col_logo, col_h1, col_h2 = st.columns([1.2, 5.8, 2.5])
+col_logo, col_h1, col_h2 = st.columns([1.2, 5.2, 3.1])
 with col_logo:
     if os.path.exists("logo_prefeitura.jpg"):
         st.image("logo_prefeitura.jpg", width=150)
@@ -328,21 +328,22 @@ with col_h1:
     """, unsafe_allow_html=True)
 
 with col_h2:
+    icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍💼"
     st.markdown(f"""
-    <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 16px 20px;">
-        <p class="header-user-info"><b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
+    <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 14px 20px;">
+        <p class="header-user-info">{icone_perfil} <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
     </div>
     """, unsafe_allow_html=True)
-
-col_dummy, col_b_sair = st.columns([1, 1.2])
-with col_b_sair:
-    if st.button("Sair do Sistema", key="btn_sair_sistema"):
-        registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
-        st.session_state.autenticado = False
-        st.session_state.usuario_atual = None
-        st.session_state.perfil_atual = None
-        st.session_state.nome_usuario = None
-        st.rerun()
+    
+    col_vazia_btn, col_b_sair = st.columns([1.3, 1.2])
+    with col_b_sair:
+        if st.button("Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
+            registrar_log(st.session_state.usuario_atual, "LOGOUT", "Usuário desconectou")
+            st.session_state.autenticado = False
+            st.session_state.usuario_atual = None
+            st.session_state.perfil_atual = None
+            st.session_state.nome_usuario = None
+            st.rerun()
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
@@ -651,7 +652,7 @@ with tab3:
             btn_filtrar_rel = st.form_submit_button("🔍 Filtrar Relatório", use_container_width=True)
             
         if btn_filtrar_rel:
-            st.session_state.id_registro_em_edicao = None # Fecha qualquer edição ativa ao filtrar de novo
+            st.session_state.id_registro_em_edicao = None
             try:
                 query = supabase.table("exames").select("*")
                 if filtro_nome.strip():
@@ -701,7 +702,6 @@ with tab3:
                     st.session_state.id_registro_em_edicao = r_id
                     st.rerun()
 
-        # Se houver um registro selecionado para edição, exibe o formulário logo abaixo
         if st.session_state.id_registro_em_edicao is not None:
             reg_alvo = next((r for r in registros_rel if r["id"] == st.session_state.id_registro_em_edicao), None)
             
@@ -748,7 +748,7 @@ with tab3:
                                 f"Protocolo {reg_alvo['protocolo']} editado para: Paciente={novo_nome.strip()}, Exame={novo_tipo}"
                             )
                             st.session_state.id_registro_em_edicao = None
-                            st.session_state.df_relatorio_filtrado = None # Atualiza a tabela
+                            st.session_state.df_relatorio_filtrado = None
                             st.success("Alterações salvas com sucesso!")
                             st.rerun()
                         except Exception as e:

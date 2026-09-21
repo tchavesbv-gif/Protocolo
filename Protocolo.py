@@ -368,8 +368,8 @@ else:
         "📊 Relatórios"
     ])
 
-if "lote_etiquetas" not in st.session_state:
-    st.session_state.lote_etiquetas = []
+if "ultimo_cadastro" not in st.session_state:
+    st.session_state.ultimo_cadastro = None
 
 # ABA 1: Novo Protocolo
 with tab1:
@@ -438,12 +438,14 @@ with tab1:
                         except Exception:
                             pass
                             
-                    st.session_state.lote_etiquetas.append({
+                    # Guarda os dados do último cadastro para exibição imediata dos botões de impressão
+                    st.session_state.ultimo_cadastro = {
                         "protocolo": num_protocolo,
                         "nome_paciente": nome_paciente,
                         "tipo_exame": tipo_exame_final,
-                        "data_coleta": data_coleta_str
-                    })
+                        "data_coleta": data_coleta_str,
+                        "data_protocolo": data_protocolo_str
+                    }
                     
                     registrar_log(
                         st.session_state.usuario_atual, 
@@ -458,30 +460,44 @@ with tab1:
             else:
                 st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame.")
 
-    if st.session_state.lote_etiquetas:
+    # Se houver um último cadastro feito agora, mostra os botões para gerar a etiqueta e o comprovante na hora
+    if st.session_state.ultimo_cadastro:
+        cad = st.session_state.ultimo_cadastro
         st.markdown("---")
-        st.markdown(f"### Lote de Etiquetas Recentes ({len(st.session_state.lote_etiquetas)} acumulados)")
-        st.info("Pode continuar a cadastrar novos exames acima ou gerar o PDF com os exames acumulados abaixo.")
+        st.success(f"Último Protocolo Gerado: **{cad['protocolo']}** — Paciente: **{cad['nome_paciente']}**")
+        st.markdown("##### Gerar Documentos Imediatos:")
         
-        pdf_etiquetas_bytes = gerar_pdf_etiquetas(st.session_state.lote_etiquetas)
+        # Gera bytes da etiqueta individual
+        pdf_etiqueta_bytes = gerar_pdf_etiquetas([cad])
         
-        col_lb1, col_lb2 = st.columns(2)
-        with col_lb1:
+        # Gera bytes do comprovante de protocolo (para assinatura)
+        dados_comprovante = {
+            "protocolo": cad["protocolo"],
+            "data_coleta": cad["data_coleta"],
+            "nome_paciente": cad["nome_paciente"],
+            "tipo_exame": cad["tipo_exame"],
+            "data_entrega": "A definir / Pendente",
+            "recebido_por": ""
+        }
+        pdf_comprovante_bytes = gerar_pdf_protocolo(dados_comprovante)
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
             st.download_button(
-                label=f"GERAR FOLHA DE ETIQUETAS DO LOTE ({len(st.session_state.lote_etiquetas)} itens)",
-                data=pdf_etiquetas_bytes,
-                file_name=f"etiquetas_lote_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                label=f"🖨️ BAIXAR ETIQUETA ({cad['protocolo']})",
+                data=pdf_etiqueta_bytes,
+                file_name=f"etiqueta_{cad['protocolo']}.pdf",
                 mime="application/pdf",
-                key="btn_baixar_lote_etiquetas"
+                key="btn_baixar_etiqueta_imediata"
             )
-        with col_lb2:
-            if st.button("Limpar / Iniciar Novo Lote de Etiquetas", key="btn_limpar_lote"):
-                st.session_state.lote_etiquetas = []
-                st.success("Lote limpo! Pronto para acumular novos exames.")
-                st.rerun()
-                
-        df_lote = pd.DataFrame(st.session_state.lote_etiquetas)
-        st.dataframe(df_lote[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]], use_container_width=True)
+        with col_btn2:
+            st.download_button(
+                label=f"📄 BAIXAR COMPROVANTE PARA ASSINATURA ({cad['protocolo']})",
+                data=pdf_comprovante_bytes,
+                file_name=f"comprovante_{cad['protocolo']}.pdf",
+                mime="application/pdf",
+                key="btn_baixar_comprovante_imediato"
+            )
 
 # ABA 2: Entregar Exames
 with tab2:

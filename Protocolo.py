@@ -271,14 +271,12 @@ def gerar_pdf_lote(lista_dados):
     pdf = PDFProtocoloEmLote(orientation="p", unit="mm", format="A5")
     pdf.set_auto_page_break(auto=False, margin=5)
     
-    # Agrupa de 2 em 2 para caber perfeitamente na mesma folha A5
     for i in range(0, len(lista_dados), 2):
         pdf.add_page()
         bloco_par = lista_dados[i:i+2]
         
         for idx, dados in enumerate(bloco_par):
             if idx > 0:
-                # Linha divisória sutil separando os dois protocolos na mesma folha
                 pdf.ln(1)
                 pdf.set_font("Arial", "I", 6.5)
                 pdf.set_text_color(180, 180, 180)
@@ -742,6 +740,7 @@ with tab2:
                                         novo_status = "Exame retirado"
                                         d_entrega = datetime.now().strftime("%d/%m/%Y")
                                         try:
+                                            # Atualiza no Banco de Dados
                                             supabase.table("exames").update({
                                                 "status": novo_status,
                                                 "data_entrega": d_entrega,
@@ -750,12 +749,40 @@ with tab2:
                                             }).eq("id", id_reg).execute()
                                             
                                             registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
-                                            st.success("Exame concluído com sucesso! Atualizando visualização...")
+                                            
+                                            # Atualiza instantaneamente o registro na memória para evitar sumir da tela
+                                            reg["status"] = novo_status
+                                            reg["data_entrega"] = d_entrega
+                                            reg["recebido_por"] = recebido_por_input.strip()
+                                            reg["usuario_entrega"] = st.session_state.nome_usuario
+                                            
+                                            st.success("Exame concluído com sucesso! Baixe o comprovante abaixo:")
                                             st.rerun()
                                         except Exception as e:
                                             st.error(f"Erro ao atualizar: {e}")
                                     else:
                                         st.warning("Por favor, preencha o nome de quem está retirando o exame.")
+                                        
+                        # BOTÃO IMEDIATO DE DOWNLOAD CASO O STATUS ACABE DE SER MODIFICADO NESTA SESSÃO
+                        if status_atual == "Exame retirado":
+                            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                            dados_pdf_imediato = [{
+                                "protocolo": protocolo,
+                                "data_coleta": data_coleta,
+                                "nome_paciente": nome_paciente_original,
+                                "tipo_exame": tipo_exame,
+                                "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
+                                "recebido_por": recebido_por_db
+                            }]
+                            pdf_bytes_imediato = gerar_pdf_lote(dados_pdf_imediato)
+                            st.download_button(
+                                label=f"📥 BAIXAR COMPROVANTE DO EXAME CONCLUÍDO - {protocolo}",
+                                data=pdf_bytes_imediato,
+                                file_name=f"comprovante_{protocolo}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_pdf_imediato_{id_reg}"
+                            )
+
                     st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
         else:
             st.warning("Nenhum exame encontrado com este código ou nome.")

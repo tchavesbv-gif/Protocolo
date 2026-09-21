@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from fpdf import FPDF
 import pandas as pd
@@ -94,10 +94,30 @@ div[data-testid="stDateInput"] input {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: inline-block;
 }
+.status-badge-atrasado {
+    background-color: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-align: center;
+    font-size: 13px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: inline-block;
+}
 .card-paciente {
     background-color: #ffffff;
     border: 1px solid #cbd5e1;
     border-left: 5px solid #0284c7;
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.card-paciente-atrasado {
+    background-color: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-left: 5px solid #ef4444;
     padding: 18px;
     border-radius: 8px;
     margin-bottom: 15px;
@@ -111,6 +131,26 @@ div[data-testid="stDateInput"] input {
     margin-top: 8px;
     font-size: 14px;
     color: #1e293b;
+}
+.kpi-card {
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin: 0;
+}
+.kpi-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0;
 }
 .stTabs [data-baseweb="tab-list"] { gap: 12px; }
 .stTabs [data-baseweb="tab"] {
@@ -155,6 +195,15 @@ def registrar_log(usuario, acao, detalhes=""):
     except Exception:
         pass
 
+def mascarar_nome(nome):
+    """Oculta parte do nome caso a privacidade esteja ativada."""
+    if not nome:
+        return ""
+    partes = nome.split()
+    if len(partes) <= 1:
+        return partes[0][:3] + "***"
+    return f"{partes[0]} {partes[1][0]}***"
+
 # ==========================================
 # 2. CONTROLE DE ACESSO (LOGIN)
 # ==========================================
@@ -166,6 +215,8 @@ if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = None
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = None
+if "mascarar_dados" not in st.session_state:
+    st.session_state.mascarar_dados = False
 
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
@@ -345,7 +396,46 @@ with col_h2:
             st.session_state.nome_usuario = None
             st.rerun()
 
-st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+
+# BARRA DE PRIVACIDADE E KPIS NO TOPO
+try:
+    res_kpi = supabase.table("exames").select("status, data_protocolo, nome_paciente").execute()
+    total_regs = len(res_kpi.data) if res_kpi.data else 0
+    total_prontos = sum(1 for x in res_kpi.data if x.get("status") == "Pronto para entrega")
+    total_retirados = sum(1 for x in res_kpi.data if x.get("status") == "Exame retirado")
+except Exception:
+    total_regs, total_prontos, total_retirados = 0, 0, 0
+
+col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+with col_kpi1:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <p class="kpi-value">{total_regs}</p>
+        <p class="kpi-label">Total de Exames Registrados</p>
+    </div>
+    """, unsafe_allow_html=True)
+with col_kpi2:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <p class="kpi-value" style="color: #0284c7;">{total_prontos}</p>
+        <p class="kpi-label">Prontos para Retirada</p>
+    </div>
+    """, unsafe_allow_html=True)
+with col_kpi3:
+    st.markdown(f"""
+    <div class="kpi-card">
+        <p class="kpi-value" style="color: #10b981;">{total_retirados}</p>
+        <p class="kpi-label">Exames Já Entregues</p>
+    </div>
+    """, unsafe_allow_html=True)
+with col_kpi4:
+    priv_label = "👁️ Ocultar Dados (LGPD)" if not st.session_state.mascarar_dados else "👁️ Exibir Dados Normais"
+    if st.button(priv_label, key="btn_toggle_privacidade", use_container_width=True):
+        st.session_state.mascarar_dados = not st.session_state.mascarar_dados
+        st.rerun()
+
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
 if st.session_state.perfil_atual == "admin":
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -459,6 +549,8 @@ with tab1:
         st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta.")
         
         df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
+        if st.session_state.mascarar_dados:
+            df_lote["nome_paciente"] = df_lote["nome_paciente"].apply(mascarar_nome)
         df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
         st.dataframe(df_lote, use_container_width=True)
         
@@ -474,14 +566,15 @@ with tab1:
                 key="btn_baixar_lote_completo"
             )
         with col_imp2:
-            if st.button("🗑️ Limpar Lote Atual", key="btn_limpar_lote"):
-                st.session_state.lote_cadastros = []
-                st.success("Lote limpo com sucesso! Pronto para novos cadastros.")
-                st.rerun()
+            with st.expander("🗑️ Limpar Lote Atual"):
+                if st.button("Confirmar Limpeza do Lote", key="btn_limpar_lote_confirma"):
+                    st.session_state.lote_cadastros = []
+                    st.success("Lote limpo com sucesso!")
+                    st.rerun()
 
-# ABA 2: Entregar Exames (Com botão de Buscar explícito)
+# ABA 2: Entregar Exames (Com Leitor de Código de Barras / Busca Global e Histórico)
 with tab2:
-    st.markdown("### Gerenciar, Entregar e Arquivar Comprovantes")
+    st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
     
     if "termo_busca_executado" not in st.session_state:
         st.session_state.termo_busca_executado = ""
@@ -491,23 +584,28 @@ with tab2:
     with st.form("form_busca_entregar"):
         col_b1, col_b2 = st.columns([4, 1])
         with col_b1:
-            busca_input = st.text_input("Digite o Nome do Paciente para Buscar:", value=st.session_state.termo_busca_executado)
+            busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado)
         with col_b2:
             st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
-            btn_executar_busca = st.form_submit_button("🔍 Buscar Paciente", use_container_width=True)
+            btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
             
         if btn_executar_busca:
             st.session_state.termo_busca_executado = busca_input
             if busca_input.strip():
                 try:
-                    res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
-                    st.session_state.registros_encontrados = res_busca.data
+                    # Busca tanto por protocolo exato quanto por nome parcial (Leitor de código de barras ou nome)
+                    res_proto = supabase.table("exames").select("*").eq("protocolo", busca_input.strip()).execute()
+                    if res_proto.data:
+                        st.session_state.registros_encontrados = res_proto.data
+                    else:
+                        res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
+                        st.session_state.registros_encontrados = res_busca.data
                 except Exception as e:
                     st.session_state.registros_encontrados = []
                     st.error(f"Erro na busca: {e}")
             else:
                 st.session_state.registros_encontrados = []
-                st.warning("Digite um nome para realizar a busca.")
+                st.warning("Digite um código de protocolo ou nome para realizar a busca.")
 
     if st.session_state.registros_encontrados is not None:
         registros = st.session_state.registros_encontrados
@@ -517,7 +615,8 @@ with tab2:
                 id_reg = reg["id"]
                 protocolo = reg["protocolo"]
                 data_coleta = reg["data_coleta"]
-                nome_paciente = reg["nome_paciente"]
+                nome_paciente_original = reg["nome_paciente"]
+                nome_paciente_exibicao = mascarar_nome(nome_paciente_original) if st.session_state.mascarar_dados else nome_paciente_original
                 tipo_exame = reg["tipo_exame"]
                 status_atual = reg["status"] if reg["status"] else "Pronto para entrega"
                 data_entrega_db = reg["data_entrega"] or ""
@@ -527,15 +626,41 @@ with tab2:
                 usr_ent = reg["usuario_entrega"] or "N/D"
                 comprovante_url = reg.get("comprovante_url", "")
                 
+                # Alerta visual dinâmico: se estiver pronto há mais de 15 dias, exibe cartão vermelho de alerta
+                atrasado = False
+                if status_atual == "Pronto para entrega" and data_protocolo != "N/D":
+                    try:
+                        dt_prot = datetime.strptime(data_protocolo[:10], "%d/%m/%Y")
+                        if (datetime.now() - dt_prot).days > 15:
+                            atrasado = True
+                    except Exception:
+                        pass
+
+                # HISTÓRICO DE RETIRADAS ANTERIORES DO PACIENTE
+                try:
+                    res_hist = supabase.table("exames").select("id, protocolo, tipo_exame, status, data_coleta").eq("nome_paciente", nome_paciente_original).execute()
+                    total_paciente = len(res_hist.data) if res_hist.data else 1
+                    total_entregues_paciente = sum(1 for x in res_hist.data if x.get("status") == "Exame retirado")
+                except Exception:
+                    total_paciente = 1
+                    total_entregues_paciente = 0
+
+                card_class = "card-paciente-atrasado" if atrasado else "card-paciente"
+                
                 with st.container():
                     st.markdown(f"""
-                    <div class="card-paciente">
+                    <div class="{card_class}">
                         <b>Protocolo:</b> {protocolo} | <b>Data Registro:</b> {data_protocolo} (Cadastrado por: <i>{usr_cad}</i>)<br>
-                        <b>Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">{nome_paciente}</span><br>
-                        <b>Exame:</b> {tipo_exame} | <b>Coleta:</b> {data_coleta}
+                        <b>Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">{nome_paciente_exibicao}</span><br>
+                        <b>Exame:</b> {tipo_exame} | <b>Coleta:</b> {data_coleta}<br>
+                        <hr style="margin: 8px 0; border: 0.5px solid #cbd5e1;">
+                        <small style="color: #475569;">📊 <b>Histórico do Paciente:</b> {total_paciente} exames cadastrados no total ({total_entregues_paciente} já retirados).</small>
                     </div>
                     """, unsafe_allow_html=True)
                     
+                    if atrasado:
+                        st.warning("⚠️ **Atenção:** Este exame está aguardando retirada há mais de 15 dias!")
+
                     if status_atual == "Exame retirado":
                         col_st1, col_st2 = st.columns(2)
                         with col_st1:
@@ -590,7 +715,7 @@ with tab2:
                         dados_pdf_unico = [{
                             "protocolo": protocolo,
                             "data_coleta": data_coleta,
-                            "nome_paciente": nome_paciente,
+                            "nome_paciente": nome_paciente_original,
                             "tipo_exame": tipo_exame,
                             "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
                             "recebido_por": recebido_por_db
@@ -604,33 +729,36 @@ with tab2:
                             key=f"dl_pdf_retirado_{id_reg}"
                         )
                     else:
+                        badge_class = "status-badge-atrasado" if atrasado else "status-badge-verde"
                         col_st1, col_st2 = st.columns(2)
                         with col_st1:
-                            st.markdown('<div class="status-badge-verde" style="background-color: #0284c7;">Pronto para entrega</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="{badge_class}" style="background-color: {"#ef4444" if atrasado else "#0284c7"};">Pronto para entrega</div>', unsafe_allow_html=True)
                         with col_st2:
                             recebido_por_input = st.text_input("Retirado por (Nome de quem vai buscar)", value="", key=f"rec_por_{id_reg}")
-                            if st.button("Concluir Retirada e Liberar Comprovante", key=f"btn_liberar_{id_reg}"):
-                                if recebido_por_input.strip():
-                                    novo_status = "Exame retirado"
-                                    d_entrega = datetime.now().strftime("%d/%m/%Y")
-                                    try:
-                                        supabase.table("exames").update({
-                                            "status": novo_status,
-                                            "data_entrega": d_entrega,
-                                            "recebido_por": recebido_por_input.strip(),
-                                            "usuario_entrega": st.session_state.nome_usuario
-                                        }).eq("id", id_reg).execute()
-                                        
-                                        registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
-                                        st.success("Exame concluído com sucesso! Atualizando visualização...")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Erro ao atualizar: {e}")
-                                else:
-                                    st.warning("Por favor, preencha o nome de quem está retirando o exame.")
+                            
+                            with st.expander("🔒 Confirmar Conclusão da Retirada"):
+                                if st.button("Concluir Retirada e Liberar Comprovante", key=f"btn_liberar_{id_reg}"):
+                                    if recebido_por_input.strip():
+                                        novo_status = "Exame retirado"
+                                        d_entrega = datetime.now().strftime("%d/%m/%Y")
+                                        try:
+                                            supabase.table("exames").update({
+                                                "status": novo_status,
+                                                "data_entrega": d_entrega,
+                                                "recebido_por": recebido_por_input.strip(),
+                                                "usuario_entrega": st.session_state.nome_usuario
+                                            }).eq("id", id_reg).execute()
+                                            
+                                            registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
+                                            st.success("Exame concluído com sucesso! Atualizando visualização...")
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Erro ao atualizar: {e}")
+                                    else:
+                                        st.warning("Por favor, preencha o nome de quem está retirando o exame.")
                     st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
         else:
-            st.warning("Nenhum exame encontrado com este nome.")
+            st.warning("Nenhum exame encontrado com este código ou nome.")
 
 # ABA 3: Relatórios e Edição Direta nos Resultados Filtrados
 with tab3:
@@ -677,6 +805,9 @@ with tab3:
 
     if registros_rel:
         df_exibicao = pd.DataFrame(registros_rel)
+        if st.session_state.mascarar_dados and "nome_paciente" in df_exibicao.columns:
+            df_exibicao["nome_paciente"] = df_exibicao["nome_paciente"].apply(mascarar_nome)
+            
         st.dataframe(df_exibicao, use_container_width=True)
         
         csv = df_exibicao.to_csv(index=False).encode("utf-8")
@@ -689,7 +820,7 @@ with tab3:
         for reg in registros_rel:
             r_id = reg["id"]
             r_prot = reg["protocolo"]
-            r_pac = reg["nome_paciente"]
+            r_pac = mascarar_nome(reg["nome_paciente"]) if st.session_state.mascarar_dados else reg["nome_paciente"]
             r_ex = reg["tipo_exame"]
             r_col = reg["data_coleta"]
             r_status = reg["status"]

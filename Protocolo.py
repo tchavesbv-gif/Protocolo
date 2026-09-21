@@ -461,11 +461,12 @@ with tab1:
     if st.session_state.lote_etiquetas:
         st.markdown("---")
         st.markdown(f"### Lote de Etiquetas Recentes ({len(st.session_state.lote_etiquetas)} acumulados)")
-        st.info("Você pode continuar cadastrando novos exames acima ou gerar o PDF com os exames acumulados abaixo.")
+        st.info("Pode continuar a cadastrar novos exames acima ou gerar o PDF com os exames acumulados abaixo.")
+        
+        pdf_etiquetas_bytes = gerar_pdf_etiquetas(st.session_state.lote_etiquetas)
         
         col_lb1, col_lb2 = st.columns(2)
         with col_lb1:
-            pdf_etiquetas_bytes = gerar_pdf_etiquetas(st.session_state.lote_etiquetas)
             st.download_button(
                 label=f"GERAR FOLHA DE ETIQUETAS DO LOTE ({len(st.session_state.lote_etiquetas)} itens)",
                 data=pdf_etiquetas_bytes,

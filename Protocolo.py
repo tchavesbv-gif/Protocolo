@@ -211,96 +211,97 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF UNIFICADO (ETIQUETA + COMPROVANTE)
+# 3. GERAÇÃO DO PDF MULTI-EXAME (LOTE UNIFICADO)
 # ==========================================
-class PDFProtocoloUnificado(FPDF):
+class PDFProtocoloEmLote(FPDF):
     pass
 
-def gerar_pdf_unificado(dados):
-    # Usando formato A5 para caber perfeitamente a etiqueta e o comprovante em uma única folha de impressão
-    pdf = PDFProtocoloUnificado(orientation="p", unit="mm", format="A5")
+def gerar_pdf_lote(lista_dados):
+    pdf = PDFProtocoloEmLote(orientation="p", unit="mm", format="A5")
     pdf.set_auto_page_break(auto=False, margin=5)
-    pdf.add_page()
     
-    # --- BLOCO 1: ETIQUETA DO ENVELOPE ---
-    pdf.set_font("Arial", "B", 9)
-    pdf.set_text_color(30, 58, 138)
-    pdf.cell(0, 5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
-    
-    pdf.set_font("Arial", "B", 8)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(22, 4, "Protocolo:", border=0)
-    pdf.set_font("Arial", "B", 9)
-    pdf.cell(0, 4, f"{dados['protocolo']}", ln=True)
-    
-    pdf.set_font("Arial", "B", 8)
-    pdf.cell(22, 4, "Paciente:", border=0)
-    pdf.set_font("Arial", "B", 9)
-    pdf.cell(0, 4, f"{dados['nome_paciente']}", ln=True)
-    
-    pdf.set_font("Arial", "B", 8)
-    pdf.cell(22, 4, "Tipo Exame:", border=0)
-    pdf.set_font("Arial", "", 8)
-    pdf.cell(0, 4, f"{dados['tipo_exame']}", ln=True)
-    
-    pdf.set_font("Arial", "B", 8)
-    pdf.cell(22, 4, "Coleta:", border=0)
-    pdf.set_font("Arial", "", 8)
-    pdf.cell(0, 4, f"{dados['data_coleta']}", ln=True)
-    
-    pdf.set_font("Arial", "I", 6)
-    pdf.set_text_color(120, 120, 120)
-    pdf.cell(0, 4, "-" * 85, ln=True, align="C")
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(1)
-
-    # --- BLOCO 2: COMPROVANTE DE ASSINATURA (DUAS VIAS) ---
-    def desenhar_via(titulo_via):
-        pdf.set_font("Arial", "B", 7)
-        pdf.cell(0, 3, f"COMPROVANTE DE EXAME ({titulo_via})", border=0, align="C")
-        pdf.ln(3)
-        pdf.set_fill_color(30, 58, 138)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", "B", 7.5)
-        pdf.cell(0, 3.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
+    for dados in lista_dados:
+        pdf.add_page()
+        
+        # --- BLOCO 1: ETIQUETA DO ENVELOPE ---
+        pdf.set_font("Arial", "B", 9)
+        pdf.set_text_color(30, 58, 138)
+        pdf.cell(0, 5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+        
+        pdf.set_font("Arial", "B", 8)
         pdf.set_text_color(0, 0, 0)
+        pdf.cell(22, 4, "Protocolo:", border=0)
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(0, 4, f"{dados['protocolo']}", ln=True)
         
-        campos = [
-            ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-            ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
-            ("Exames:", dados["tipo_exame"], "", "")
-        ]
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(22, 4, "Paciente:", border=0)
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(0, 4, f"{dados['nome_paciente']}", ln=True)
         
-        for rot1, val1, rot2, val2 in campos:
-            pdf.set_font("Arial", "B", 6.5)
-            pdf.cell(16, 3.5, rot1, border=1)
-            pdf.set_font("Arial", "", 6.5)
-            pdf.cell(50, 3.5, str(val1), border=1)
-            if rot2:
-                pdf.set_font("Arial", "B", 6.5)
-                pdf.cell(18, 3.5, rot2, border=1)
-                pdf.set_font("Arial", "", 6.5)
-                pdf.cell(48, 3.5, str(val2), border=1, ln=True)
-            else:
-                pdf.ln(3.5)
-                
-        pdf.ln(2)
-        pdf.set_font("Arial", "I", 5.5)
-        pdf.multi_cell(0, 2.5, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
-        pdf.ln(2)
-        pdf.set_font("Arial", "", 6.5)
-        pdf.cell(66, 3, "_" * 30, align="C")
-        pdf.cell(66, 3, "_" * 30, align="C", ln=True)
-        pdf.cell(66, 3, "Assinatura do Paciente / Responsável", align="C")
-        pdf.cell(66, 3, "Assinatura / Carimbo Atendente", align="C", ln=True)
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(22, 4, "Tipo Exame:", border=0)
+        pdf.set_font("Arial", "", 8)
+        pdf.cell(0, 4, f"{dados['tipo_exame']}", ln=True)
+        
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(22, 4, "Coleta:", border=0)
+        pdf.set_font("Arial", "", 8)
+        pdf.cell(0, 4, f"{dados['data_coleta']}", ln=True)
+        
+        pdf.set_font("Arial", "I", 6)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 4, "-" * 85, ln=True, align="C")
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(1)
 
-    desenhar_via("VIA DA UNIDADE / PACIENTE")
-    pdf.ln(2)
-    pdf.set_font("Arial", "I", 5)
-    pdf.cell(0, 2.5, "-" * 90 + " (Destaque aqui) " + "-" * 90, align="C", ln=True)
-    pdf.ln(2)
-    desenhar_via("VIA DE CONTROLE")
-    
+        # --- BLOCO 2: COMPROVANTE DE ASSINATURA (DUAS VIAS) ---
+        def desenhar_via_lote(titulo_via):
+            pdf.set_font("Arial", "B", 7)
+            pdf.cell(0, 3, f"COMPROVANTE DE EXAME ({titulo_via})", border=0, align="C")
+            pdf.ln(3)
+            pdf.set_fill_color(30, 58, 138)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(0, 3.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
+            pdf.set_text_color(0, 0, 0)
+            
+            campos = [
+                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
+                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
+                ("Exames:", dados["tipo_exame"], "", "")
+            ]
+            
+            for rot1, val1, rot2, val2 in campos:
+                pdf.set_font("Arial", "B", 6.5)
+                pdf.cell(16, 3.5, rot1, border=1)
+                pdf.set_font("Arial", "", 6.5)
+                pdf.cell(50, 3.5, str(val1), border=1)
+                if rot2:
+                    pdf.set_font("Arial", "B", 6.5)
+                    pdf.cell(18, 3.5, rot2, border=1)
+                    pdf.set_font("Arial", "", 6.5)
+                    pdf.cell(48, 3.5, str(val2), border=1, ln=True)
+                else:
+                    pdf.ln(3.5)
+                    
+            pdf.ln(2)
+            pdf.set_font("Arial", "I", 5.5)
+            pdf.multi_cell(0, 2.5, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
+            pdf.ln(2)
+            pdf.set_font("Arial", "", 6.5)
+            pdf.cell(66, 3, "_" * 30, align="C")
+            pdf.cell(66, 3, "_" * 30, align="C", ln=True)
+            pdf.cell(66, 3, "Assinatura do Paciente / Responsável", align="C")
+            pdf.cell(66, 3, "Assinatura / Carimbo Atendente", align="C", ln=True)
+
+        desenhar_via_lote("VIA DA UNIDADE / PACIENTE")
+        pdf.ln(2)
+        pdf.set_font("Arial", "I", 5)
+        pdf.cell(0, 2.5, "-" * 90 + " (Destaque aqui) " + "-" * 90, align="C", ln=True)
+        pdf.ln(2)
+        desenhar_via_lote("VIA DE CONTROLE")
+        
     output = pdf.output(dest="S")
     if isinstance(output, str):
         return output.encode("latin1")
@@ -345,7 +346,6 @@ with col_b_sair:
 
 st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
-# Definição das abas com ícones
 if st.session_state.perfil_atual == "admin":
     tab1, tab2, tab3, tab4 = st.tabs([
         "➕ Novo Protocolo", 
@@ -360,12 +360,13 @@ else:
         "📊 Relatórios"
     ])
 
-if "ultimo_cadastro" not in st.session_state:
-    st.session_state.ultimo_cadastro = None
-
-# ABA 1: Novo Protocolo
+# ABA 1: Novo Protocolo com Acúmulo em Lote
 with tab1:
     st.markdown("### Registrar Novo Exame Coletado")
+    
+    if "lote_cadastros" not in st.session_state:
+        st.session_state.lote_cadastros = []
+
     try:
         res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
         lista_exames_cadastrados = [t["nome"] for t in res_tipos.data] if res_tipos.data else []
@@ -396,7 +397,7 @@ with tab1:
         with col_ex2:
             exame_novo_input = st.text_input("Ou Digite um Novo Tipo de Exame", key=f"val_novo_tipo_{v}")
             
-        submitted = st.form_submit_button("Salvar Registro de Exame")
+        submitted = st.form_submit_button("Salvar e Adicionar ao Lote")
         
         if submitted:
             tipo_exame_final = ""
@@ -430,13 +431,14 @@ with tab1:
                         except Exception:
                             pass
                             
-                    # Armazena os dados do último cadastro para gerar o PDF único de imediato
-                    st.session_state.ultimo_cadastro = {
+                    st.session_state.lote_cadastros.append({
                         "protocolo": num_protocolo,
                         "nome_paciente": nome_paciente,
                         "tipo_exame": tipo_exame_final,
-                        "data_coleta": data_coleta_str
-                    }
+                        "data_coleta": data_coleta_str,
+                        "data_entrega": "Pendente",
+                        "recebido_por": ""
+                    })
                     
                     registrar_log(
                         st.session_state.usuario_atual, 
@@ -444,37 +446,37 @@ with tab1:
                         f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente} ({tipo_exame_final})"
                     )
                     st.session_state.form_version += 1
-                    st.success(f"Registro salvo com sucesso! Protocolo gerado: **{num_protocolo}**")
+                    st.success(f"Exame inserido! Protocolo gerado: **{num_protocolo}** (Adicionado ao lote de impressão)")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
             else:
                 st.warning("Preencha o Nome Completo do Paciente e informe o Tipo de Exame.")
 
-    # Se houver um cadastro recente, exibe um botão único contendo etiqueta + comprovante no mesmo PDF
-    if st.session_state.ultimo_cadastro:
-        cad = st.session_state.ultimo_cadastro
+    if st.session_state.lote_cadastros:
         st.markdown("---")
-        st.success(f"Exame protocolado com sucesso! Protocolo: **{cad['protocolo']}** — Paciente: **{cad['nome_paciente']}**")
+        st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta.")
         
-        dados_pdf_completo = {
-            "protocolo": cad["protocolo"],
-            "data_coleta": cad["data_coleta"],
-            "nome_paciente": cad["nome_paciente"],
-            "tipo_exame": cad["tipo_exame"],
-            "data_entrega": "Pendente",
-            "recebido_por": ""
-        }
+        df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
+        df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
+        st.dataframe(df_lote, use_container_width=True)
         
-        pdf_unificado_bytes = gerar_pdf_unificado(dados_pdf_completo)
+        pdf_lote_bytes = gerar_pdf_lote(st.session_state.lote_cadastros)
         
-        st.download_button(
-            label=f"🖨️ IMPRIMIR ETIQUETA E COMPROVANTE (ÚNICO PDF) - {cad['protocolo']}",
-            data=pdf_unificado_bytes,
-            file_name=f"documentos_{cad['protocolo']}.pdf",
-            mime="application/pdf",
-            key="btn_baixar_documentos_unificados"
-        )
+        col_imp1, col_imp2 = st.columns([2, 1])
+        with col_imp1:
+            st.download_button(
+                label=f"🖨️ IMPRIMIR TODOS OS DOCUMENTOS DO LOTE ({len(st.session_state.lote_cadastros)} EXAMES)",
+                data=pdf_lote_bytes,
+                file_name=f"lote_etiquetas_comprovantes_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                key="btn_baixar_lote_completo"
+            )
+        with col_imp2:
+            if st.button("🗑️ Limpar Lote Atual", key="btn_limpar_lote"):
+                st.session_state.lote_cadastros = []
+                st.success("Lote limpo com sucesso! Pronto para novos cadastros.")
+                st.rerun()
 
 # ABA 2: Entregar Exames
 with tab2:
@@ -569,15 +571,15 @@ with tab2:
                                             st.error(f"Erro ao enviar arquivo: {e}")
                                             
                         st.markdown("---")
-                        dados_pdf = {
+                        dados_pdf_unico = [{
                             "protocolo": protocolo,
                             "data_coleta": data_coleta,
                             "nome_paciente": nome_paciente,
                             "tipo_exame": tipo_exame,
                             "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
                             "recebido_por": recebido_por_db
-                        }
-                        pdf_bytes = gerar_pdf_unificado(dados_pdf)
+                        }]
+                        pdf_bytes = gerar_pdf_lote(dados_pdf_unico)
                         st.download_button(
                             label=f"BAIXAR / IMPRIMIR COMPROVANTE (PDF) - {protocolo}",
                             data=pdf_bytes,

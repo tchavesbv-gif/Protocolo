@@ -262,7 +262,7 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF MULTI-EXAME (UMA VIA - FONTES EQUILIBRADAS/INTERMEDIÁRIAS)
+# 3. GERAÇÃO DO PDF (2 PROTOCOLOS POR FOLHA A5)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
@@ -271,83 +271,90 @@ def gerar_pdf_lote(lista_dados):
     pdf = PDFProtocoloEmLote(orientation="p", unit="mm", format="A5")
     pdf.set_auto_page_break(auto=False, margin=5)
     
-    for dados in lista_dados:
+    # Agrupa de 2 em 2 para caber perfeitamente na mesma folha A5
+    for i in range(0, len(lista_dados), 2):
         pdf.add_page()
+        bloco_par = lista_dados[i:i+2]
         
-        # --- BLOCO 1: ETIQUETA DO ENVELOPE (FONTE REDUZIDA/INTERMEDIÁRIA) ---
-        pdf.set_font("Arial", "B", 9.5)
-        pdf.set_text_color(30, 58, 138)
-        pdf.cell(0, 5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
-        pdf.ln(2)
-        
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(24, 5, "Protocolo:", border=0)
-        pdf.set_font("Arial", "B", 9.5)
-        pdf.cell(0, 5, f"{dados['protocolo']}", ln=True)
-        
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.cell(24, 5, "Paciente:", border=0)
-        pdf.set_font("Arial", "B", 9.5)
-        pdf.cell(0, 5, f"{dados['nome_paciente']}", ln=True)
-        
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.cell(24, 5, "Tipo Exame:", border=0)
-        pdf.set_font("Arial", "", 8.5)
-        pdf.cell(0, 5, f"{dados['tipo_exame']}", ln=True)
-        
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.cell(24, 5, "Coleta:", border=0)
-        pdf.set_font("Arial", "", 8.5)
-        pdf.cell(0, 5, f"{dados['data_coleta']}", ln=True)
-        
-        pdf.ln(2)
-        pdf.set_font("Arial", "I", 7.5)
-        pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 4, "-" * 75, ln=True, align="C")
-        pdf.set_text_color(0, 0, 0)
-        pdf.ln(2)
+        for idx, dados in enumerate(bloco_par):
+            if idx > 0:
+                # Linha divisória sutil separando os dois protocolos na mesma folha
+                pdf.ln(1)
+                pdf.set_font("Arial", "I", 6.5)
+                pdf.set_text_color(180, 180, 180)
+                pdf.cell(0, 3, "-" * 85, ln=True, align="C")
+                pdf.ln(1)
 
-        # --- BLOCO 2: COMPROVANTE ÚNICO (ASSINATURA E DIGITALIZAÇÃO) ---
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.cell(0, 4.5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
-        pdf.ln(4)
-        
-        pdf.set_fill_color(30, 58, 138)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", "B", 8.5)
-        pdf.cell(0, 5.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
-        pdf.set_text_color(0, 0, 0)
-        
-        campos = [
-            ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-            ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
-            ("Exames:", dados["tipo_exame"], "", "")
-        ]
-        
-        for rot1, val1, rot2, val2 in campos:
-            pdf.set_font("Arial", "B", 8)
-            pdf.cell(20, 5.5, rot1, border=1)
-            pdf.set_font("Arial", "", 8)
-            pdf.cell(57, 5.5, str(val1), border=1)
-            if rot2:
-                pdf.set_font("Arial", "B", 8)
-                pdf.cell(22, 5.5, rot2, border=1)
-                pdf.set_font("Arial", "", 8)
-                pdf.cell(29, 5.5, str(val2), border=1, ln=True)
-            else:
-                pdf.ln(5.5)
-                
-        pdf.ln(3)
-        pdf.set_font("Arial", "I", 7)
-        pdf.multi_cell(0, 3.5, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
-        pdf.ln(8)
-        
-        pdf.set_font("Arial", "", 8)
-        pdf.cell(64, 4, "_" * 30, align="C")
-        pdf.cell(64, 4, "_" * 30, align="C", ln=True)
-        pdf.cell(64, 4, "Assinatura do Paciente / Responsável", align="C")
-        pdf.cell(64, 4, "Assinatura / Carimbo Atendente", align="C", ln=True)
+            # --- BLOCO 1: ETIQUETA DO ENVELOPE (COMPACTA) ---
+            pdf.set_font("Arial", "B", 8.5)
+            pdf.set_text_color(30, 58, 138)
+            pdf.cell(0, 4, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+            pdf.ln(1)
+            
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(20, 4, "Protocolo:", border=0)
+            pdf.set_font("Arial", "B", 8.5)
+            pdf.cell(0, 4, f"{dados['protocolo']}", ln=True)
+            
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(20, 4, "Paciente:", border=0)
+            pdf.set_font("Arial", "B", 8.5)
+            pdf.cell(0, 4, f"{dados['nome_paciente']}", ln=True)
+            
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(20, 4, "Tipo Exame:", border=0)
+            pdf.set_font("Arial", "", 7.5)
+            pdf.cell(0, 4, f"{dados['tipo_exame']}", ln=True)
+            
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(20, 4, "Coleta:", border=0)
+            pdf.set_font("Arial", "", 7.5)
+            pdf.cell(0, 4, f"{dados['data_coleta']}", ln=True)
+            
+            pdf.ln(1)
+
+            # --- BLOCO 2: COMPROVANTE ÚNICO (COMPACTO) ---
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(0, 3.5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
+            pdf.ln(2)
+            
+            pdf.set_fill_color(30, 58, 138)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(0, 4.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
+            pdf.set_text_color(0, 0, 0)
+            
+            campos = [
+                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
+                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
+                ("Exames:", dados["tipo_exame"], "", "")
+            ]
+            
+            for rot1, val1, rot2, val2 in campos:
+                pdf.set_font("Arial", "B", 7)
+                pdf.cell(18, 4.5, rot1, border=1)
+                pdf.set_font("Arial", "", 7)
+                pdf.cell(59, 4.5, str(val1), border=1)
+                if rot2:
+                    pdf.set_font("Arial", "B", 7)
+                    pdf.cell(20, 4.5, rot2, border=1)
+                    pdf.set_font("Arial", "", 7)
+                    pdf.cell(31, 4.5, str(val2), border=1, ln=True)
+                else:
+                    pdf.ln(4.5)
+                    
+            pdf.ln(1.5)
+            pdf.set_font("Arial", "I", 6)
+            pdf.multi_cell(0, 3, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
+            pdf.ln(3)
+            
+            pdf.set_font("Arial", "", 7)
+            pdf.cell(64, 3.5, "_" * 28, align="C")
+            pdf.cell(64, 3.5, "_" * 28, align="C", ln=True)
+            pdf.cell(64, 3.5, "Assinatura do Paciente / Responsável", align="C")
+            pdf.cell(64, 3.5, "Assinatura / Carimbo Atendente", align="C", ln=True)
+            pdf.ln(2)
         
     output = pdf.output(dest="S")
     if isinstance(output, str):
@@ -542,7 +549,7 @@ with tab1:
 
     if st.session_state.lote_cadastros:
         st.markdown("---")
-        st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta.")
+        st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta (2 por folha).")
         
         df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
         if st.session_state.mascarar_dados:
@@ -555,9 +562,9 @@ with tab1:
         col_imp1, col_imp2 = st.columns([2, 1])
         with col_imp1:
             st.download_button(
-                label=f"🖨️ IMPRIMIR TODOS OS DOCUMENTOS DO LOTE ({len(st.session_state.lote_cadastros)} EXAMES)",
+                label=f"🖨️ IMPRIMIR LOTE CONJUNTO (2 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
                 data=pdf_lote_bytes,
-                file_name=f"lote_etiquetas_comprovantes_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                file_name=f"lote_2_por_folha_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
                 key="btn_baixar_lote_completo"
             )

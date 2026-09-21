@@ -262,7 +262,7 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF MULTI-EXAME (LOTE UNIFICADO)
+# 3. GERAÇÃO DO PDF MULTI-EXAME (LOTE ÚNICO COM FONTE MAIOR)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
@@ -274,84 +274,80 @@ def gerar_pdf_lote(lista_dados):
     for dados in lista_dados:
         pdf.add_page()
         
-        # --- BLOCO 1: ETIQUETA DO ENVELOPE ---
-        pdf.set_font("Arial", "B", 9)
+        # --- BLOCO 1: ETIQUETA DO ENVELOPE (FONTE AUMENTADA) ---
+        pdf.set_font("Arial", "B", 11)
         pdf.set_text_color(30, 58, 138)
-        pdf.cell(0, 5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+        pdf.cell(0, 6, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+        pdf.ln(2)
         
-        pdf.set_font("Arial", "B", 8)
+        pdf.set_font("Arial", "B", 10)
         pdf.set_text_color(0, 0, 0)
-        pdf.cell(22, 4, "Protocolo:", border=0)
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 4, f"{dados['protocolo']}", ln=True)
+        pdf.cell(26, 6, "Protocolo:", border=0)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 6, f"{dados['protocolo']}", ln=True)
         
-        pdf.set_font("Arial", "B", 8)
-        pdf.cell(22, 4, "Paciente:", border=0)
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 4, f"{dados['nome_paciente']}", ln=True)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(26, 6, "Paciente:", border=0)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 6, f"{dados['nome_paciente']}", ln=True)
         
-        pdf.set_font("Arial", "B", 8)
-        pdf.cell(22, 4, "Tipo Exame:", border=0)
-        pdf.set_font("Arial", "", 8)
-        pdf.cell(0, 4, f"{dados['tipo_exame']}", ln=True)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(26, 6, "Tipo Exame:", border=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"{dados['tipo_exame']}", ln=True)
         
-        pdf.set_font("Arial", "B", 8)
-        pdf.cell(22, 4, "Coleta:", border=0)
-        pdf.set_font("Arial", "", 8)
-        pdf.cell(0, 4, f"{dados['data_coleta']}", ln=True)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(26, 6, "Coleta:", border=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"{dados['data_coleta']}", ln=True)
         
-        pdf.set_font("Arial", "I", 6)
+        pdf.ln(3)
+        pdf.set_font("Arial", "I", 8)
         pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 4, "-" * 85, ln=True, align="C")
+        pdf.cell(0, 5, "-" * 72, ln=True, align="C")
         pdf.set_text_color(0, 0, 0)
-        pdf.ln(1)
+        pdf.ln(3)
 
-        # --- BLOCO 2: COMPROVANTE DE ASSINATURA (DUAS VIAS) ---
-        def desenhar_via_lote(titulo_via):
-            pdf.set_font("Arial", "B", 7)
-            pdf.cell(0, 3, f"COMPROVANTE DE EXAME ({titulo_via})", border=0, align="C")
-            pdf.ln(3)
-            pdf.set_fill_color(30, 58, 138)
-            pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.cell(0, 3.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
-            pdf.set_text_color(0, 0, 0)
-            
-            campos = [
-                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
-                ("Exames:", dados["tipo_exame"], "", "")
-            ]
-            
-            for rot1, val1, rot2, val2 in campos:
-                pdf.set_font("Arial", "B", 6.5)
-                pdf.cell(16, 3.5, rot1, border=1)
-                pdf.set_font("Arial", "", 6.5)
-                pdf.cell(50, 3.5, str(val1), border=1)
-                if rot2:
-                    pdf.set_font("Arial", "B", 6.5)
-                    pdf.cell(18, 3.5, rot2, border=1)
-                    pdf.set_font("Arial", "", 6.5)
-                    pdf.cell(48, 3.5, str(val2), border=1, ln=True)
-                else:
-                    pdf.ln(3.5)
-                    
-            pdf.ln(2)
-            pdf.set_font("Arial", "I", 5.5)
-            pdf.multi_cell(0, 2.5, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
-            pdf.ln(2)
-            pdf.set_font("Arial", "", 6.5)
-            pdf.cell(66, 3, "_" * 30, align="C")
-            pdf.cell(66, 3, "_" * 30, align="C", ln=True)
-            pdf.cell(66, 3, "Assinatura do Paciente / Responsável", align="C")
-            pdf.cell(66, 3, "Assinatura / Carimbo Atendente", align="C", ln=True)
-
-        desenhar_via_lote("VIA DA UNIDADE / PACIENTE")
-        pdf.ln(2)
-        pdf.set_font("Arial", "I", 5)
-        pdf.cell(0, 2.5, "-" * 90 + " (Destaque aqui) " + "-" * 90, align="C", ln=True)
-        pdf.ln(2)
-        desenhar_via_lote("VIA DE CONTROLE")
+        # --- BLOCO 2: COMPROVANTE ÚNICO (ASSINATURA E DIGITALIZAÇÃO) ---
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(0, 5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
+        pdf.ln(5)
+        
+        pdf.set_fill_color(30, 58, 138)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Arial", "B", 9.5)
+        pdf.cell(0, 6, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
+        pdf.set_text_color(0, 0, 0)
+        
+        campos = [
+            ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
+            ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
+            ("Exames:", dados["tipo_exame"], "", "")
+        ]
+        
+        for rot1, val1, rot2, val2 in campos:
+            pdf.set_font("Arial", "B", 8.5)
+            pdf.cell(22, 6, rot1, border=1)
+            pdf.set_font("Arial", "", 8.5)
+            pdf.cell(55, 6, str(val1), border=1)
+            if rot2:
+                pdf.set_font("Arial", "B", 8.5)
+                pdf.cell(24, 6, rot2, border=1)
+                pdf.set_font("Arial", "", 8.5)
+                pdf.cell(33, 6, str(val2), border=1, ln=True)
+            else:
+                pdf.ln(6)
+                
+        pdf.ln(5)
+        pdf.set_font("Arial", "I", 7.5)
+        pdf.multi_cell(0, 4, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
+        pdf.ln(12)
+        
+        pdf.set_font("Arial", "", 8.5)
+        pdf.cell(67, 5, "_" * 32, align="C")
+        pdf.cell(67, 5, "_" * 32, align="C", ln=True)
+        pdf.cell(67, 5, "Assinatura do Paciente / Responsável", align="C")
+        pdf.cell(67, 5, "Assinatura / Carimbo Atendente", align="C", ln=True)
         
     output = pdf.output(dest="S")
     if isinstance(output, str):
@@ -593,7 +589,6 @@ with tab2:
             st.session_state.termo_busca_executado = busca_input
             if busca_input.strip():
                 try:
-                    # Busca tanto por protocolo exato quanto por nome parcial (Leitor de código de barras ou nome)
                     res_proto = supabase.table("exames").select("*").eq("protocolo", busca_input.strip()).execute()
                     if res_proto.data:
                         st.session_state.registros_encontrados = res_proto.data
@@ -626,7 +621,6 @@ with tab2:
                 usr_ent = reg["usuario_entrega"] or "N/D"
                 comprovante_url = reg.get("comprovante_url", "")
                 
-                # Alerta visual dinâmico: se estiver pronto há mais de 15 dias, exibe cartão vermelho de alerta
                 atrasado = False
                 if status_atual == "Pronto para entrega" and data_protocolo != "N/D":
                     try:
@@ -636,7 +630,6 @@ with tab2:
                     except Exception:
                         pass
 
-                # HISTÓRICO DE RETIRADAS ANTERIORES DO PACIENTE
                 try:
                     res_hist = supabase.table("exames").select("id, protocolo, tipo_exame, status, data_coleta").eq("nome_paciente", nome_paciente_original).execute()
                     total_paciente = len(res_hist.data) if res_hist.data else 1

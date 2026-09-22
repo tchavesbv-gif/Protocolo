@@ -572,11 +572,15 @@ with tab2:
         st.session_state.termo_busca_executado = ""
     if "registros_encontrados" not in st.session_state:
         st.session_state.registros_encontrados = None
+    if "busca_version" not in st.session_state:
+        st.session_state.busca_version = 0
 
-    with st.form("form_busca_entregar"):
+    bv = st.session_state.busca_version
+
+    with st.form(f"form_busca_entregar_{bv}"):
         col_b1, col_b2 = st.columns([4, 1])
         with col_b1:
-            busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado)
+            busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado, key=f"input_busca_val_{bv}")
         with col_b2:
             st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
             btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
@@ -591,8 +595,15 @@ with tab2:
                     else:
                         res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
                         st.session_state.registros_encontrados = res_busca.data
+                    
+                    # Se após a busca não encontrar nada, limpa o estado para resetar a caixa de input na próxima renderização
+                    if not st.session_state.registros_encontrados:
+                        st.session_state.termo_busca_executado = ""
+                        st.session_state.busca_version += 1
                 except Exception as e:
                     st.session_state.registros_encontrados = []
+                    st.session_state.termo_busca_executado = ""
+                    st.session_state.busca_version += 1
                     st.error(f"Erro na busca: {e}")
             else:
                 st.session_state.registros_encontrados = []
@@ -696,7 +707,6 @@ with tab2:
                                             
                                             registrar_log(st.session_state.usuario_atual, "UPLOAD_COMPROVANTE", f"Comprovante assinado do protocolo {protocolo} arquivado.")
                                             
-                                            # ATUALIZAÇÃO IMEDIATA DO ESTADO NA MEMÓRIA
                                             reg["comprovante_url"] = public_url_res
                                             
                                             st.success("Comprovante arquivado com sucesso!")
@@ -778,6 +788,8 @@ with tab2:
                     st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
         else:
             st.warning("Nenhum exame encontrado com este código ou nome.")
+            # Limpa o resultado gravado para sumir a mensagem anterior na próxima alteração
+            st.session_state.registros_encontrados = None
 
 with tab3:
     st.markdown("### Relatório Geral, Filtros e Edição Direta de Registros")
@@ -786,11 +798,15 @@ with tab3:
         st.session_state.df_relatorio_filtrado = None
     if "id_registro_em_edicao" not in st.session_state:
         st.session_state.id_registro_em_edicao = None
+    if "rel_version" not in st.session_state:
+        st.session_state.rel_version = 0
 
-    with st.form("form_filtro_relatorios"):
+    rv = st.session_state.rel_version
+
+    with st.form(f"form_filtro_relatorios_{rv}"):
         col_f1, col_f2, col_f3 = st.columns([3, 2, 1])
         with col_f1:
-            filtro_nome = st.text_input("Filtrar por Nome do Paciente (Opcional)", value="")
+            filtro_nome = st.text_input("Filtrar por Nome do Paciente (Opcional)", value="", key=f"input_rel_nome_{rv}")
         with col_f2:
             filtro_status = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"])
         with col_f3:
@@ -808,8 +824,13 @@ with tab3:
                 
                 res_rel = query.order("id", desc=True).execute()
                 st.session_state.df_relatorio_filtrado = res_rel.data
+                
+                # Se a busca no relatório não retornar nada, limpa e atualiza a versão para resetar o campo de texto
+                if not st.session_state.df_relatorio_filtrado:
+                    st.session_state.rel_version += 1
             except Exception as e:
                 st.session_state.df_relatorio_filtrado = []
+                st.session_state.rel_version += 1
                 st.error(f"Erro ao gerar relatório: {e}")
 
     if st.session_state.df_relatorio_filtrado is None:
@@ -907,7 +928,8 @@ with tab3:
                         st.session_state.id_registro_em_edicao = None
                         st.rerun()
     else:
-        st.info("Nenhum registro encontrado para exibir.")
+        st.info("Nenhum registro encontrado com este filtro.")
+        st.session_state.df_relatorio_filtrado = None
 
 if st.session_state.perfil_atual == "admin":
     with tab4:

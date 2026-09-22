@@ -1,8 +1,4 @@
 streamlit
+supabase>=2.0.0
 pandas
 fpdf2
-supabase
-supabase>=2.0.0
-streamlit
-fpdf
-pandas

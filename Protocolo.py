@@ -170,10 +170,10 @@ div[data-testid="stDateInput"] input {
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONEXÃO COM O SUPABASE (API REST) - FORÇADA
+# 1. CONEXÃO COM O SUPABASE (API REST)
 # ==========================================
 SUPABASE_URL = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxdnVxaHpweXZ4bmJnbHh5bmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMDAzODMsImV4cCI6MjEwNDY3NjM4M30.W551NuUDkob1UMb5LryTL3Y1nis6O0rvpsgIU3L6L8k"
+SUPABASE_KEY = "sb_publishable_gd15fFKsaKLyENPqiSLDHg_FMvSa1Ii"
 
 @st.cache_resource
 def init_supabase():

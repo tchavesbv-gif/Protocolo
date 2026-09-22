@@ -170,10 +170,10 @@ div[data-testid="stDateInput"] input {
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONEXÃO COM O SUPABASE (API REST)
+# 1. CONEXÃO COM O SUPABASE (VIA SECRETS)
 # ==========================================
-SUPABASE_URL = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxdnVxaHpweXZ4bmJnbHh5bmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMDAzODMsImV4cCI6MjEwNDY3NjM4M30.W551NuUDkob1UMb5LryTL3Y1nis6O0rvpsgIU3L6L8k"
+SUPABASE_URL = st.secrets["supabase"]["url"]
+SUPABASE_KEY = st.secrets["supabase"]["key"]
 
 @st.cache_resource
 def init_supabase():
@@ -745,7 +745,7 @@ with tab2:
                                             reg["recebido_por"] = recebido_por_input.strip()
                                             reg["usuario_entrega"] = st.session_state.nome_usuario
                                             
-                                            st.success("Exame concluído com sucesso! Baixe o comprovante abaixo:")
+                                            st.success("Exame concluído com sucesso!")
                                             st.rerun()
                                         except Exception as e:
                                             st.error(f"Erro ao atualizar: {e}")

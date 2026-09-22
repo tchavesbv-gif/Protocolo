@@ -174,7 +174,7 @@ div[data-testid="stDateInput"] input {
 # ==========================================
 SUPAGE_URL_DEFAULT = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
 # Cole aqui a chave LEGACY ANON (formato JWT, comecando com "eyJ...") obtida no Supabase:
-SUPAGE_KEY_DEFAULT = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxdnVxaHpweXZ4bmJnbHh5bmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMDAzODMsImV4cCI6MjEwNDY3NjM4M30.W551NuUDkob1UMb5LryTL3Y1nis6O0rvpsgIU3L6L8k
+SUPAGE_KEY_DEFAULT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxdnVxaHpweXZ4bmJnbHh5bmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMDAzODMsImV4cCI6MjEwNDY3NjM4M30.W551NuUDkob1UMb5LryTL3Y1nis6O0rvpsgIU3L6L8k"
 
 SUPABASE_URL = st.secrets["supabase"]["url"] if "supabase" in st.secrets and "url" in st.secrets["supabase"] else SUPAGE_URL_DEFAULT
 SUPABASE_KEY = st.secrets["supabase"]["key"] if "supabase" in st.secrets and "key" in st.secrets["supabase"] else SUPAGE_KEY_DEFAULT

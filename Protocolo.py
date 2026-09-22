@@ -173,7 +173,8 @@ div[data-testid="stDateInput"] input {
 # 1. CONEXÃO COM O SUPABASE (API REST)
 # ==========================================
 SUPAGE_URL_DEFAULT = "https://yqvuqhzpyvxnbglxynbh.supabase.co"
-SUPAGE_KEY_DEFAULT = "sb_publishable_gd15fFKsaKLYENPqiSLDHg_FMvSa1li"
+# Cole aqui a chave LEGACY ANON (formato JWT, comecando com "eyJ...") obtida no Supabase:
+SUPAGE_KEY_DEFAULT = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxdnVxaHpweXZ4bmJnbHh5bmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMDAzODMsImV4cCI6MjEwNDY3NjM4M30.W551NuUDkob1UMb5LryTL3Y1nis6O0rvpsgIU3L6L8k
 
 SUPABASE_URL = st.secrets["supabase"]["url"] if "supabase" in st.secrets and "url" in st.secrets["supabase"] else SUPAGE_URL_DEFAULT
 SUPABASE_KEY = st.secrets["supabase"]["key"] if "supabase" in st.secrets and "key" in st.secrets["supabase"] else SUPAGE_KEY_DEFAULT
@@ -196,7 +197,6 @@ def registrar_log(usuario, acao, detalhes=""):
         pass
 
 def mascarar_nome(nome):
-    """Oculta parte do nome caso a privacidade esteja ativada."""
     if not nome:
         return ""
     partes = nome.split()
@@ -231,7 +231,7 @@ if not st.session_state.autenticado:
         st.markdown("""
         <div class="header-box-unica" style="flex-direction: column; text-align: center; margin-top: 15px; margin-bottom: 25px;">
             <p class="header-title" style="font-size: 24px !important;">Secretaria Municipal de Saúde de Teixeiras</p>
-            <p class="header-subtitle">Acesso Restrito - Nuvem Segura (Supabase API)</p>
+            <p class="header-subtitle">Acesso Restrito - Nuvem Segura (API Supabase)</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -283,7 +283,6 @@ def gerar_pdf_lote(lista_dados):
                 pdf.cell(0, 3, "-" * 85, ln=True, align="C")
                 pdf.ln(1)
 
-            # --- BLOCO 1: ETIQUETA DO ENVELOPE (COMPACTA) ---
             pdf.set_font("Arial", "B", 8.5)
             pdf.set_text_color(30, 58, 138)
             pdf.cell(0, 4, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
@@ -312,7 +311,6 @@ def gerar_pdf_lote(lista_dados):
             
             pdf.ln(1)
 
-            # --- BLOCO 2: COMPROVANTE ÚNICO (COMPACTO) ---
             pdf.set_font("Arial", "B", 7.5)
             pdf.cell(0, 3.5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
             pdf.ln(2)
@@ -399,7 +397,6 @@ with col_h2:
 
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-# BARRA DE PRIVACIDADE E KPIS NO TOPO
 try:
     res_kpi = supabase.table("exames").select("status, data_protocolo, nome_paciente").execute()
     total_regs = len(res_kpi.data) if res_kpi.data else 0
@@ -452,7 +449,6 @@ else:
         "📊 Relatórios & Edição"
     ])
 
-# ABA 1: Novo Protocolo com Acúmulo em Lote
 with tab1:
     st.markdown("### Registrar Novo Exame Coletado")
     
@@ -573,7 +569,6 @@ with tab1:
                     st.success("Lote limpo com sucesso!")
                     st.rerun()
 
-# ABA 2: Entregar Exames (Com Leitor de Código de Barras / Busca Global e Histórico)
 with tab2:
     st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
     
@@ -740,7 +735,6 @@ with tab2:
                                         novo_status = "Exame retirado"
                                         d_entrega = datetime.now().strftime("%d/%m/%Y")
                                         try:
-                                            # Atualiza no Banco de Dados
                                             supabase.table("exames").update({
                                                 "status": novo_status,
                                                 "data_entrega": d_entrega,
@@ -750,7 +744,6 @@ with tab2:
                                             
                                             registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
                                             
-                                            # Atualiza instantaneamente o registro na memória para evitar sumir da tela
                                             reg["status"] = novo_status
                                             reg["data_entrega"] = d_entrega
                                             reg["recebido_por"] = recebido_por_input.strip()
@@ -763,7 +756,6 @@ with tab2:
                                     else:
                                         st.warning("Por favor, preencha o nome de quem está retirando o exame.")
                                         
-                        # BOTÃO IMEDIATO DE DOWNLOAD CASO O STATUS ACABE DE SER MODIFICADO NESTA SESSÃO
                         if status_atual == "Exame retirado":
                             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
                             dados_pdf_imediato = [{
@@ -787,7 +779,6 @@ with tab2:
         else:
             st.warning("Nenhum exame encontrado com este código ou nome.")
 
-# ABA 3: Relatórios e Edição Direta nos Resultados Filtrados
 with tab3:
     st.markdown("### Relatório Geral, Filtros e Edição Direta de Registros")
     
@@ -918,7 +909,6 @@ with tab3:
     else:
         st.info("Nenhum registro encontrado para exibir.")
 
-# ABA 4: Manutenção e Logs (Exclusiva para Admin)
 if st.session_state.perfil_atual == "admin":
     with tab4:
         st.markdown("### Gerenciamento de Usuários do Sistema")

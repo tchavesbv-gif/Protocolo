@@ -695,6 +695,10 @@ with tab2:
                                             }).eq("id", id_reg).execute()
                                             
                                             registrar_log(st.session_state.usuario_atual, "UPLOAD_COMPROVANTE", f"Comprovante assinado do protocolo {protocolo} arquivado.")
+                                            
+                                            # ATUALIZAÇÃO IMEDIATA DO ESTADO NA MEMÓRIA
+                                            reg["comprovante_url"] = public_url_res
+                                            
                                             st.success("Comprovante arquivado com sucesso!")
                                             st.rerun()
                                         except Exception as e:

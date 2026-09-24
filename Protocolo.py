@@ -258,7 +258,7 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF (2 PROTOCOLOS POR FOLHA A5)
+# 3. GERAÇÃO DO PDF (2 COMPROVANTES/ETIQUETAS UNIFICADOS POR FOLHA A5)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
@@ -273,43 +273,16 @@ def gerar_pdf_lote(lista_dados):
         
         for idx, dados in enumerate(bloco_par):
             if idx > 0:
-                pdf.ln(1)
+                pdf.ln(2)
                 pdf.set_font("Arial", "I", 6.5)
                 pdf.set_text_color(180, 180, 180)
                 pdf.cell(0, 3, "-" * 85, ln=True, align="C")
-                pdf.ln(1)
+                pdf.ln(2)
 
-            pdf.set_font("Arial", "B", 8.5)
+            pdf.set_font("Arial", "B", 7.5)
             pdf.set_text_color(30, 58, 138)
-            pdf.cell(0, 4, "SEC. MUN. DE SAÚDE DE TEIXEIRAS - ETIQUETA DO EXAME", border=0, ln=True, align="C")
+            pdf.cell(0, 3.5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS", border=0, ln=True, align="C")
             pdf.ln(1)
-            
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(20, 4, "Protocolo:", border=0)
-            pdf.set_font("Arial", "B", 8.5)
-            pdf.cell(0, 4, f"{dados['protocolo']}", ln=True)
-            
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.cell(20, 4, "Paciente:", border=0)
-            pdf.set_font("Arial", "B", 8.5)
-            pdf.cell(0, 4, f"{dados['nome_paciente']}", ln=True)
-            
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.cell(20, 4, "Tipo Exame:", border=0)
-            pdf.set_font("Arial", "", 7.5)
-            pdf.cell(0, 4, f"{dados['tipo_exame']}", ln=True)
-            
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.cell(20, 4, "Coleta:", border=0)
-            pdf.set_font("Arial", "", 7.5)
-            pdf.cell(0, 4, f"{dados['data_coleta']}", ln=True)
-            
-            pdf.ln(1)
-
-            pdf.set_font("Arial", "B", 7.5)
-            pdf.cell(0, 3.5, "COMPROVANTE DE RETIRADA DE EXAME", border=0, align="C")
-            pdf.ln(2)
             
             pdf.set_fill_color(30, 58, 138)
             pdf.set_text_color(255, 255, 255)
@@ -596,7 +569,6 @@ with tab2:
                         res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
                         st.session_state.registros_encontrados = res_busca.data
                     
-                    # Se após a busca não encontrar nada, limpa o estado para resetar a caixa de input na próxima renderização
                     if not st.session_state.registros_encontrados:
                         st.session_state.termo_busca_executado = ""
                         st.session_state.busca_version += 1
@@ -788,7 +760,6 @@ with tab2:
                     st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
         else:
             st.warning("Nenhum exame encontrado com este código ou nome.")
-            # Limpa o resultado gravado para sumir a mensagem anterior na próxima alteração
             st.session_state.registros_encontrados = None
 
 with tab3:
@@ -825,7 +796,6 @@ with tab3:
                 res_rel = query.order("id", desc=True).execute()
                 st.session_state.df_relatorio_filtrado = res_rel.data
                 
-                # Se a busca no relatório não retornar nada, limpa e atualiza a versão para resetar o campo de texto
                 if not st.session_state.df_relatorio_filtrado:
                     st.session_state.rel_version += 1
             except Exception as e:

@@ -4,6 +4,8 @@ from fpdf import FPDF
 import pandas as pd
 import streamlit as st
 from supabase import create_client
+import plotly.express as px
+import plotly.graph_objects as go
 
 # ==========================================
 # 0. CONFIGURAÇÃO GLOBAL E ESTILOS CSS
@@ -192,7 +194,7 @@ def registrar_log(usuario, acao, detalhes=""):
         pass
 
 # ==========================================
-# 2. CONTROLE DE ACESSO (LOGIN) E LIMPEZA DE ESTADO GLOBAL
+# 2. CONTROLE DE ACESSO (LOGIN) E ESTADO GLOBAL
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -203,7 +205,6 @@ if "perfil_atual" not in st.session_state:
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = None
 
-# Estados de busca e campos
 if "termo_busca_executado" not in st.session_state:
     st.session_state.termo_busca_executado = ""
 if "registros_encontrados" not in st.session_state:
@@ -262,7 +263,7 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF (2 COMPROVANTES/ETIQUETAS UNIFICADOS POR FOLHA A5)
+# 3. GERAÇÃO DO PDF (2 COMPROVANTES POR FOLHA A5)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
@@ -865,10 +866,13 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
         total_regs = len(res_kpi.data) if res_kpi.data else 0
         total_prontos = sum(1 for x in res_kpi.data if x.get("status") == "Pronto para entrega")
         total_retirados = sum(1 for x in res_kpi.data if x.get("status") == "Exame retirado")
+        
+        taxa_conclusao = round((total_retirados / total_regs * 100), 1) if total_regs > 0 else 0.0
     except Exception:
-        total_regs, total_prontos, total_retirados = 0, 0, 0
+        total_regs, total_prontos, total_retirados, taxa_conclusao = 0, 0, 0, 0.0
 
-    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+    # KPIs Avançados Otimizados (4 colunas)
+    col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
     with col_kpi1:
         st.markdown(f"""
         <div class="kpi-card">
@@ -890,6 +894,13 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
             <p class="kpi-label">Exames Já Entregues</p>
         </div>
         """, unsafe_allow_html=True)
+    with col_kpi4:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <p class="kpi-value" style="color: #6366f1;">{taxa_conclusao}%</p>
+            <p class="kpi-label">Taxa de Conclusão (Entrega)</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
@@ -903,17 +914,53 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
         df_bi = pd.DataFrame(dados_bi)
 
         col_bi1, col_bi2 = st.columns(2)
+        
+        # 1. Gráfico de Rosca (Donut Chart) para Status - Perfeito para partes de um todo
         with col_bi1:
-            st.markdown("#### 📊 Exames por Status")
+            st.markdown("#### 🎯 Proporção do Fluxo de Status")
             status_counts = df_bi["status"].value_counts().reset_index()
             status_counts.columns = ["Status", "Quantidade"]
-            st.bar_chart(status_counts.set_index("Status"))
+            
+            fig_donut = px.pie(
+                status_counts, 
+                names="Status", 
+                values="Quantidade", 
+                hole=0.55,
+                color="Status",
+                color_discrete_map={
+                    "Pronto para entrega": "#ef4444", 
+                    "Exame retirado": "#0284c7"
+                }
+            )
+            fig_donut.update_layout(
+                margin=dict(t=10, b=10, l=10, r=10),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+            )
+            st.plotly_chart(fig_donut, use_container_width=True)
 
+        # 2. Gráfico de Barras Horizontais para Tipos de Exames - Melhora legibilidade de nomes longos
         with col_bi2:
-            st.markdown("#### 🧪 Tipos de Exames mais Frequentes")
+            st.markdown("#### 🧪 Top 5 Tipos de Exames Mais Solicitados")
             tipo_counts = df_bi["tipo_exame"].value_counts().head(5).reset_index()
             tipo_counts.columns = ["Tipo de Exame", "Quantidade"]
-            st.bar_chart(tipo_counts.set_index("Tipo de Exame"))
+            tipo_counts = tipo_counts.sort_values(by="Quantidade", ascending=True) # Ordena para barras horizontais ficarem em ordem decrescente bonita
+            
+            fig_bar = px.bar(
+                tipo_counts, 
+                x="Quantidade", 
+                y="Tipo de Exame", 
+                orientation="h",
+                text="Quantidade",
+                color="Quantidade",
+                color_continuous_scale="Blues"
+            )
+            fig_bar.update_layout(
+                margin=dict(t=10, b=10, l=10, r=10),
+                coloraxis_showscale=False,
+                xaxis_title="Total de Solicitações",
+                yaxis_title=""
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
 
         st.markdown("---")
         col_bi3, col_bi4 = st.columns(2)

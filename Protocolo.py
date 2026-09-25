@@ -411,7 +411,7 @@ with tab1:
         with col1:
             data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
         with col2:
-            nome_paciente = st.text_input("Nome Completo do Paciente", key=f"val_nome_{v}")
+            nome_paciente = st.text_input("Nome Completo das/o Paciente", key=f"val_nome_{v}")
         
         st.markdown("---")
         st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
@@ -513,6 +513,16 @@ with tab2:
     
     bv = st.session_state.busca_version
 
+    # Botão para limpar a busca atual manualmente se desejar
+    col_bs1, col_bs2 = st.columns([5, 1])
+    with col_bs2:
+        if st.session_state.registros_encontrados is not None:
+            if st.button("Limpar Pesquisa", key="btn_reset_busca", use_container_width=True):
+                st.session_state.termo_busca_executado = ""
+                st.session_state.registros_encontrados = None
+                st.session_state.busca_version += 1
+                st.rerun()
+
     with st.form(f"form_busca_entregar_{bv}"):
         col_b1, col_b2 = st.columns([4, 1])
         with col_b1:
@@ -533,17 +543,12 @@ with tab2:
                         st.session_state.registros_encontrados = res_busca.data
                     
                     if not st.session_state.registros_encontrados:
-                        st.session_state.termo_busca_executado = ""
-                        st.session_state.busca_version += 1
+                        st.warning("Nenhum exame encontrado com este código ou nome.")
                 except Exception as e:
                     st.session_state.registros_encontrados = []
-                    st.session_state.termo_busca_executado = ""
-                    st.session_state.busca_version += 1
                     st.error(f"Erro na busca: {e}")
             else:
-                st.session_state.registros_encontrados = []
-                st.session_state.termo_busca_executado = ""
-                st.session_state.busca_version += 1
+                st.session_state.registros_encontrados = None
                 st.warning("Digite um código de protocolo ou nome para realizar a busca.")
 
     if st.session_state.registros_encontrados is not None:
@@ -723,21 +728,26 @@ with tab2:
                             )
 
                     st.markdown("<hr style='margin: 20px 0; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
-        else:
-            st.warning("Nenhum exame encontrado com este código ou nome.")
-            st.session_state.registros_encontrados = None
 
 with tab3:
     st.markdown("### Relatório Geral, Filtros e Edição Direta de Registros")
     
     rv = st.session_state.rel_version
 
+    col_rs1, col_rs2 = st.columns([5, 1])
+    with col_rs2:
+        if st.button("Limpar Filtros", key="btn_reset_rel", use_container_width=True):
+            st.session_state.df_relatorio_filtrado = None
+            st.session_state.id_registro_em_edicao = None
+            st.session_state.rel_version += 1
+            st.rerun()
+
     with st.form(f"form_filtro_relatorios_{rv}"):
         col_f1, col_f2, col_f3 = st.columns([3, 2, 1])
         with col_f1:
             filtro_nome = st.text_input("Filtrar por Nome do Paciente (Opcional)", value="", key=f"input_rel_nome_{rv}")
         with col_f2:
-            filtro_status = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"])
+            filtro_status = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"], key=f"input_rel_status_{rv}")
         with col_f3:
             st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
             btn_filtrar_rel = st.form_submit_button("🔍 Filtrar Relatório", use_container_width=True)
@@ -753,12 +763,8 @@ with tab3:
                 
                 res_rel = query.order("id", desc=True).execute()
                 st.session_state.df_relatorio_filtrado = res_rel.data
-                
-                if not st.session_state.df_relatorio_filtrado:
-                    st.session_state.rel_version += 1
             except Exception as e:
                 st.session_state.df_relatorio_filtrado = []
-                st.session_state.rel_version += 1
                 st.error(f"Erro ao gerar relatório: {e}")
 
     if st.session_state.df_relatorio_filtrado is None:
@@ -855,7 +861,6 @@ with tab3:
                         st.rerun()
     else:
         st.info("Nenhum registro encontrado com este filtro.")
-        st.session_state.df_relatorio_filtrado = None
 
 with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
     st.markdown("### 📈 Painel de Business Intelligence e Indicadores de Saúde")

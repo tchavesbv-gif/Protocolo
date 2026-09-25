@@ -915,7 +915,7 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
 
         col_bi1, col_bi2 = st.columns(2)
         
-        # 1. Gráfico de Rosca (Donut Chart) para Status - Perfeito para partes de um todo
+        # 1. Gráfico de Rosca (Donut Chart) Aprimorado com Paleta Profissional
         with col_bi1:
             st.markdown("#### 🎯 Proporção do Fluxo de Status")
             status_counts = df_bi["status"].value_counts().reset_index()
@@ -925,25 +925,33 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
                 status_counts, 
                 names="Status", 
                 values="Quantidade", 
-                hole=0.55,
+                hole=0.6,
                 color="Status",
                 color_discrete_map={
                     "Pronto para entrega": "#ef4444", 
                     "Exame retirado": "#0284c7"
                 }
             )
+            fig_donut.update_traces(
+                textposition='inside', 
+                textinfo='percent+label',
+                marker=dict(line=dict(color='#ffffff', width=2))
+            )
             fig_donut.update_layout(
                 margin=dict(t=10, b=10, l=10, r=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_donut, use_container_width=True)
 
-        # 2. Gráfico de Barras Horizontais para Tipos de Exames - Melhora legibilidade de nomes longos
+        # 2. Gráfico de Barras Horizontais Customizado (DeGradê Corporativo)
         with col_bi2:
             st.markdown("#### 🧪 Top 5 Tipos de Exames Mais Solicitados")
             tipo_counts = df_bi["tipo_exame"].value_counts().head(5).reset_index()
             tipo_counts.columns = ["Tipo de Exame", "Quantidade"]
-            tipo_counts = tipo_counts.sort_values(by="Quantidade", ascending=True) # Ordena para barras horizontais ficarem em ordem decrescente bonita
+            tipo_counts = tipo_counts.sort_values(by="Quantidade", ascending=True)
             
             fig_bar = px.bar(
                 tipo_counts, 
@@ -952,13 +960,22 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
                 orientation="h",
                 text="Quantidade",
                 color="Quantidade",
-                color_continuous_scale="Blues"
+                color_continuous_scale=["#38bdf8", "#0284c7", "#1e3a8a"]
+            )
+            fig_bar.update_traces(
+                textfont_size=12,
+                textangle=0,
+                textposition="outside",
+                cliponaxis=False
             )
             fig_bar.update_layout(
-                margin=dict(t=10, b=10, l=10, r=10),
+                margin=dict(t=10, b=10, l=10, r=30),
                 coloraxis_showscale=False,
                 xaxis_title="Total de Solicitações",
-                yaxis_title=""
+                yaxis_title="",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(showgrid=True, gridcolor="#e2e8f0")
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 

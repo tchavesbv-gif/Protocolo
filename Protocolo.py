@@ -871,7 +871,6 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
     except Exception:
         total_regs, total_prontos, total_retirados, taxa_conclusao = 0, 0, 0, 0.0
 
-    # KPIs Avançados Otimizados (4 colunas)
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
     with col_kpi1:
         st.markdown(f"""
@@ -915,7 +914,6 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
 
         col_bi1, col_bi2 = st.columns(2)
         
-        # 1. Gráfico de Rosca (Donut Chart) Aprimorado com Paleta Profissional
         with col_bi1:
             st.markdown("#### 🎯 Proporção do Fluxo de Status")
             status_counts = df_bi["status"].value_counts().reset_index()
@@ -946,12 +944,14 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
             )
             st.plotly_chart(fig_donut, use_container_width=True)
 
-        # 2. Gráfico de Barras Horizontais Customizado (DeGradê Corporativo)
         with col_bi2:
             st.markdown("#### 🧪 Top 5 Tipos de Exames Mais Solicitados")
             tipo_counts = df_bi["tipo_exame"].value_counts().head(5).reset_index()
             tipo_counts.columns = ["Tipo de Exame", "Quantidade"]
             tipo_counts = tipo_counts.sort_values(by="Quantidade", ascending=True)
+            
+            # Paleta com cores exclusivas e distintas para cada barra do Top 5
+            cores_exames = ["#0284c7", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"]
             
             fig_bar = px.bar(
                 tipo_counts, 
@@ -959,8 +959,8 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
                 y="Tipo de Exame", 
                 orientation="h",
                 text="Quantidade",
-                color="Quantidade",
-                color_continuous_scale=["#38bdf8", "#0284c7", "#1e3a8a"]
+                color="Tipo de Exame",
+                color_discrete_sequence=cores_exames
             )
             fig_bar.update_traces(
                 textfont_size=12,
@@ -970,7 +970,7 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
             )
             fig_bar.update_layout(
                 margin=dict(t=10, b=10, l=10, r=30),
-                coloraxis_showscale=False,
+                showlegend=False,
                 xaxis_title="Total de Solicitações",
                 yaxis_title="",
                 paper_bgcolor="rgba(0,0,0,0)",

@@ -950,7 +950,6 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
             tipo_counts.columns = ["Tipo de Exame", "Quantidade"]
             tipo_counts = tipo_counts.sort_values(by="Quantidade", ascending=True)
             
-            # Paleta com cores exclusivas e distintas para cada barra do Top 5
             cores_exames = ["#0284c7", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"]
             
             fig_bar = px.bar(
@@ -978,24 +977,6 @@ with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
                 xaxis=dict(showgrid=True, gridcolor="#e2e8f0")
             )
             st.plotly_chart(fig_bar, use_container_width=True)
-
-        st.markdown("---")
-        col_bi3, col_bi4 = st.columns(2)
-        with col_bi3:
-            st.markdown("#### 👨‍💼 Produtividade por Atendente (Cadastros)")
-            if "usuario_cadastro" in df_bi.columns:
-                cad_counts = df_bi["usuario_cadastro"].replace("", "Não informado").value_counts().reset_index()
-                cad_counts.columns = ["Atendente", "Exames Cadastrados"]
-                st.dataframe(cad_counts, use_container_width=True)
-        with col_bi4:
-            st.markdown("#### 🤝 Produtividade por Atendente (Entregas)")
-            if "usuario_entrega" in df_bi.columns:
-                ent_counts = df_bi[df_bi["usuario_entrega"] != ""]["usuario_entrega"].value_counts().reset_index()
-                if not ent_counts.empty:
-                    ent_counts.columns = ["Atendente", "Exames Entregues"]
-                    st.dataframe(ent_counts, use_container_width=True)
-                else:
-                    st.info("Nenhuma entrega registrada por atendentes ainda.")
     else:
         st.info("Ainda não há dados suficientes para gerar os indicadores de BI.")
 

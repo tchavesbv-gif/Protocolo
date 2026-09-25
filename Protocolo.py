@@ -143,7 +143,6 @@ div[data-testid="stDateInput"] input {
 .kpi-value {
     font-size: 24px;
     font-weight: 700;
-    color: #1e3a8a;
     margin: 0;
 }
 .kpi-label {
@@ -371,39 +370,6 @@ with col_h2:
             st.session_state.registros_encontrados = None
             st.session_state.df_relatorio_filtrado = None
             st.rerun()
-
-st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-
-try:
-    res_kpi = supabase.table("exames").select("status, data_protocolo, nome_paciente").execute()
-    total_regs = len(res_kpi.data) if res_kpi.data else 0
-    total_prontos = sum(1 for x in res_kpi.data if x.get("status") == "Pronto para entrega")
-    total_retirados = sum(1 for x in res_kpi.data if x.get("status") == "Exame retirado")
-except Exception:
-    total_regs, total_prontos, total_retirados = 0, 0, 0
-
-col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-with col_kpi1:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <p class="kpi-value">{total_regs}</p>
-        <p class="kpi-label">Total de Exames Registrados</p>
-    </div>
-    """, unsafe_allow_html=True)
-with col_kpi2:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <p class="kpi-value" style="color: #0284c7;">{total_prontos}</p>
-        <p class="kpi-label">Prontos para Retirada</p>
-    </div>
-    """, unsafe_allow_html=True)
-with col_kpi3:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <p class="kpi-value" style="color: #10b981;">{total_retirados}</p>
-        <p class="kpi-label">Exames Já Entregues</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
@@ -891,9 +857,41 @@ with tab3:
         st.session_state.df_relatorio_filtrado = None
 
 with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
-    # ABA DE BUSINESS INTELLIGENCE (BI)
     st.markdown("### 📈 Painel de Business Intelligence e Indicadores de Saúde")
     st.markdown("Visão gerencial consolidada do fluxo de exames e desempenho da Secretaria Municipal.")
+
+    try:
+        res_kpi = supabase.table("exames").select("status, data_protocolo, nome_paciente").execute()
+        total_regs = len(res_kpi.data) if res_kpi.data else 0
+        total_prontos = sum(1 for x in res_kpi.data if x.get("status") == "Pronto para entrega")
+        total_retirados = sum(1 for x in res_kpi.data if x.get("status") == "Exame retirado")
+    except Exception:
+        total_regs, total_prontos, total_retirados = 0, 0, 0
+
+    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+    with col_kpi1:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <p class="kpi-value" style="color: #10b981;">{total_regs}</p>
+            <p class="kpi-label">Total de Exames Registrados</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_kpi2:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <p class="kpi-value" style="color: #ef4444;">{total_prontos}</p>
+            <p class="kpi-label">Prontos para Retirada</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_kpi3:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <p class="kpi-value" style="color: #0284c7;">{total_retirados}</p>
+            <p class="kpi-label">Exames Já Entregues</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
 
     try:
         res_bi = supabase.table("exames").select("id, tipo_exame, status, data_coleta, usuario_cadastro, usuario_entrega").execute()

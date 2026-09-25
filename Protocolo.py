@@ -192,16 +192,8 @@ def registrar_log(usuario, acao, detalhes=""):
     except Exception:
         pass
 
-def mascarar_nome(nome):
-    if not nome:
-        return ""
-    partes = nome.split()
-    if len(partes) <= 1:
-        return partes[0][:3] + "***"
-    return f"{partes[0]} {partes[1][0]}***"
-
 # ==========================================
-# 2. CONTROLE DE ACESSO (LOGIN)
+# 2. CONTROLE DE ACESSO (LOGIN) E LIMPEZA DE ESTADO GLOBAL
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -211,8 +203,21 @@ if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = None
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = None
-if "mascarar_dados" not in st.session_state:
-    st.session_state.mascarar_dados = False
+
+# Estados de busca e campos
+if "termo_busca_executado" not in st.session_state:
+    st.session_state.termo_busca_executado = ""
+if "registros_encontrados" not in st.session_state:
+    st.session_state.registros_encontrados = None
+if "busca_version" not in st.session_state:
+    st.session_state.busca_version = 0
+
+if "df_relatorio_filtrado" not in st.session_state:
+    st.session_state.df_relatorio_filtrado = None
+if "id_registro_em_edicao" not in st.session_state:
+    st.session_state.id_registro_em_edicao = None
+if "rel_version" not in st.session_state:
+    st.session_state.rel_version = 0
 
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
@@ -329,7 +334,7 @@ def gerar_pdf_lote(lista_dados):
 # ==========================================
 # 4. INTERFACE PRINCIPAL DO SISTEMA
 # ==========================================
-col_logo, col_h1, col_h2 = st.columns([1.2, 5.2, 3.1])
+col_logo, col_h1, col_h2 = st.columns([1.2, 5.7, 2.6])
 with col_logo:
     if os.path.exists("logo_prefeitura.jpg"):
         st.image("logo_prefeitura.jpg", width=150)
@@ -362,6 +367,9 @@ with col_h2:
             st.session_state.usuario_atual = None
             st.session_state.perfil_atual = None
             st.session_state.nome_usuario = None
+            st.session_state.termo_busca_executado = ""
+            st.session_state.registros_encontrados = None
+            st.session_state.df_relatorio_filtrado = None
             st.rerun()
 
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
@@ -374,7 +382,7 @@ try:
 except Exception:
     total_regs, total_prontos, total_retirados = 0, 0, 0
 
-col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
 with col_kpi1:
     st.markdown(f"""
     <div class="kpi-card">
@@ -396,26 +404,23 @@ with col_kpi3:
         <p class="kpi-label">Exames Já Entregues</p>
     </div>
     """, unsafe_allow_html=True)
-with col_kpi4:
-    priv_label = "👁️ Ocultar Dados (LGPD)" if not st.session_state.mascarar_dados else "👁️ Exibir Dados Normais"
-    if st.button(priv_label, key="btn_toggle_privacidade", use_container_width=True):
-        st.session_state.mascarar_dados = not st.session_state.mascarar_dados
-        st.rerun()
 
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
 if st.session_state.perfil_atual == "admin":
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "➕ Novo Protocolo", 
         "📦 Entregar Exames", 
         "📊 Relatórios & Edição", 
+        "📈 BI & Indicadores",
         "⚙️ Manutenção & Logs"
     ])
 else:
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "➕ Novo Protocolo", 
         "📦 Entregar Exames", 
-        "📊 Relatórios & Edição"
+        "📊 Relatórios & Edição",
+        "📈 BI & Indicadores"
     ])
 
 with tab1:
@@ -515,8 +520,6 @@ with tab1:
         st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta (2 por folha).")
         
         df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
-        if st.session_state.mascarar_dados:
-            df_lote["nome_paciente"] = df_lote["nome_paciente"].apply(mascarar_nome)
         df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
         st.dataframe(df_lote, use_container_width=True)
         
@@ -541,13 +544,6 @@ with tab1:
 with tab2:
     st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
     
-    if "termo_busca_executado" not in st.session_state:
-        st.session_state.termo_busca_executado = ""
-    if "registros_encontrados" not in st.session_state:
-        st.session_state.registros_encontrados = None
-    if "busca_version" not in st.session_state:
-        st.session_state.busca_version = 0
-
     bv = st.session_state.busca_version
 
     with st.form(f"form_busca_entregar_{bv}"):
@@ -579,6 +575,8 @@ with tab2:
                     st.error(f"Erro na busca: {e}")
             else:
                 st.session_state.registros_encontrados = []
+                st.session_state.termo_busca_executado = ""
+                st.session_state.busca_version += 1
                 st.warning("Digite um código de protocolo ou nome para realizar a busca.")
 
     if st.session_state.registros_encontrados is not None:
@@ -590,7 +588,7 @@ with tab2:
                 protocolo = reg["protocolo"]
                 data_coleta = reg["data_coleta"]
                 nome_paciente_original = reg["nome_paciente"]
-                nome_paciente_exibicao = mascarar_nome(nome_paciente_original) if st.session_state.mascarar_dados else nome_paciente_original
+                nome_paciente_exibicao = nome_paciente_original
                 tipo_exame = reg["tipo_exame"]
                 status_atual = reg["status"] if reg["status"] else "Pronto para entrega"
                 data_entrega_db = reg["data_entrega"] or ""
@@ -765,13 +763,6 @@ with tab2:
 with tab3:
     st.markdown("### Relatório Geral, Filtros e Edição Direta de Registros")
     
-    if "df_relatorio_filtrado" not in st.session_state:
-        st.session_state.df_relatorio_filtrado = None
-    if "id_registro_em_edicao" not in st.session_state:
-        st.session_state.id_registro_em_edicao = None
-    if "rel_version" not in st.session_state:
-        st.session_state.rel_version = 0
-
     rv = st.session_state.rel_version
 
     with st.form(f"form_filtro_relatorios_{rv}"):
@@ -814,8 +805,6 @@ with tab3:
 
     if registros_rel:
         df_exibicao = pd.DataFrame(registros_rel)
-        if st.session_state.mascarar_dados and "nome_paciente" in df_exibicao.columns:
-            df_exibicao["nome_paciente"] = df_exibicao["nome_paciente"].apply(mascarar_nome)
             
         st.dataframe(df_exibicao, use_container_width=True)
         
@@ -829,7 +818,7 @@ with tab3:
         for reg in registros_rel:
             r_id = reg["id"]
             r_prot = reg["protocolo"]
-            r_pac = mascarar_nome(reg["nome_paciente"]) if st.session_state.mascarar_dados else reg["nome_paciente"]
+            r_pac = reg["nome_paciente"]
             r_ex = reg["tipo_exame"]
             r_col = reg["data_coleta"]
             r_status = reg["status"]
@@ -901,8 +890,55 @@ with tab3:
         st.info("Nenhum registro encontrado com este filtro.")
         st.session_state.df_relatorio_filtrado = None
 
+with (tab4 if st.session_state.perfil_atual == "admin" else tab4):
+    # ABA DE BUSINESS INTELLIGENCE (BI)
+    st.markdown("### 📈 Painel de Business Intelligence e Indicadores de Saúde")
+    st.markdown("Visão gerencial consolidada do fluxo de exames e desempenho da Secretaria Municipal.")
+
+    try:
+        res_bi = supabase.table("exames").select("id, tipo_exame, status, data_coleta, usuario_cadastro, usuario_entrega").execute()
+        dados_bi = res_bi.data if res_bi.data else []
+    except Exception:
+        dados_bi = []
+
+    if dados_bi:
+        df_bi = pd.DataFrame(dados_bi)
+
+        col_bi1, col_bi2 = st.columns(2)
+        with col_bi1:
+            st.markdown("#### 📊 Exames por Status")
+            status_counts = df_bi["status"].value_counts().reset_index()
+            status_counts.columns = ["Status", "Quantidade"]
+            st.bar_chart(status_counts.set_index("Status"))
+
+        with col_bi2:
+            st.markdown("#### 🧪 Tipos de Exames mais Frequentes")
+            tipo_counts = df_bi["tipo_exame"].value_counts().head(5).reset_index()
+            tipo_counts.columns = ["Tipo de Exame", "Quantidade"]
+            st.bar_chart(tipo_counts.set_index("Tipo de Exame"))
+
+        st.markdown("---")
+        col_bi3, col_bi4 = st.columns(2)
+        with col_bi3:
+            st.markdown("#### 👨‍💼 Produtividade por Atendente (Cadastros)")
+            if "usuario_cadastro" in df_bi.columns:
+                cad_counts = df_bi["usuario_cadastro"].replace("", "Não informado").value_counts().reset_index()
+                cad_counts.columns = ["Atendente", "Exames Cadastrados"]
+                st.dataframe(cad_counts, use_container_width=True)
+        with col_bi4:
+            st.markdown("#### 🤝 Produtividade por Atendente (Entregas)")
+            if "usuario_entrega" in df_bi.columns:
+                ent_counts = df_bi[df_bi["usuario_entrega"] != ""]["usuario_entrega"].value_counts().reset_index()
+                if not ent_counts.empty:
+                    ent_counts.columns = ["Atendente", "Exames Entregues"]
+                    st.dataframe(ent_counts, use_container_width=True)
+                else:
+                    st.info("Nenhuma entrega registrada por atendentes ainda.")
+    else:
+        st.info("Ainda não há dados suficientes para gerar os indicadores de BI.")
+
 if st.session_state.perfil_atual == "admin":
-    with tab4:
+    with tab5:
         st.markdown("### Gerenciamento de Usuários do Sistema")
         if "form_user_version" not in st.session_state:
             st.session_state.form_user_version = 0

@@ -246,15 +246,22 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    # Busca ignorando maiúsculas/minúsculas e removendo espaços acidentais
-                    res = supabase.table("usuarios").select("*").ilike("username", user_input.strip()).execute()
-                    dados_user = res.data
-                    if dados_user and dados_user[0]["senha"].strip() == senha_input.strip():
+                    # Busca exata ignorando case através de filtro flexível na tabela usuarios
+                    res = supabase.table("usuarios").select("*").execute()
+                    todos_usuarios = res.data if res.data else []
+                    
+                    usuario_encontrado = None
+                    for u in todos_usuarios:
+                        if u["username"].strip().lower() == user_input.strip().lower():
+                            usuario_encontrado = u
+                            break
+                    
+                    if usuario_encontrado and str(usuario_encontrado["senha"]).strip() == senha_input.strip():
                         st.session_state.autenticado = True
-                        st.session_state.usuario_atual = user_input.strip()
-                        st.session_state.nome_usuario = dados_user[0]["nome_completo"]
-                        st.session_state.perfil_atual = dados_user[0]["perfil"]
-                        registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
+                        st.session_state.usuario_atual = usuario_encontrado["username"]
+                        st.session_state.nome_usuario = usuario_encontrado["nome_completo"]
+                        st.session_state.perfil_atual = usuario_encontrado["perfil"]
+                        registrar_log(usuario_encontrado["username"], "LOGIN", "Usuário acessou o sistema")
                         st.success("Login realizado com sucesso!")
                         st.rerun()
                     else:

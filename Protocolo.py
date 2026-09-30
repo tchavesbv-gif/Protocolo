@@ -246,24 +246,21 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    # Busca exata ignorando case através de filtro flexível na tabela usuarios
-                    res = supabase.table("usuarios").select("*").execute()
-                    todos_usuarios = res.data if res.data else []
+                    # Consulta direta e segura via API do Supabase utilizando o eq
+                    res = supabase.table("usuarios").select("*").eq("username", user_input.strip()).execute()
                     
-                    usuario_encontrado = None
-                    for u in todos_usuarios:
-                        if u["username"].strip().lower() == user_input.strip().lower():
-                            usuario_encontrado = u
-                            break
-                    
-                    if usuario_encontrado and str(usuario_encontrado["senha"]).strip() == senha_input.strip():
-                        st.session_state.autenticado = True
-                        st.session_state.usuario_atual = usuario_encontrado["username"]
-                        st.session_state.nome_usuario = usuario_encontrado["nome_completo"]
-                        st.session_state.perfil_atual = usuario_encontrado["perfil"]
-                        registrar_log(usuario_encontrado["username"], "LOGIN", "Usuário acessou o sistema")
-                        st.success("Login realizado com sucesso!")
-                        st.rerun()
+                    if res.data and len(res.data) > 0:
+                        usuario_encontrado = res.data[0]
+                        if str(usuario_encontrado["senha"]).strip() == senha_input.strip():
+                            st.session_state.autenticado = True
+                            st.session_state.usuario_atual = usuario_encontrado["username"]
+                            st.session_state.nome_usuario = usuario_encontrado["nome_completo"]
+                            st.session_state.perfil_atual = usuario_encontrado["perfil"]
+                            registrar_log(usuario_encontrado["username"], "LOGIN", "Usuário acessou o sistema")
+                            st.success("Login realizado com sucesso!")
+                            st.rerun()
+                        else:
+                            st.error("Usuário ou senha incorretos.")
                     else:
                         st.error("Usuário ou senha incorretos.")
                 except Exception as e:

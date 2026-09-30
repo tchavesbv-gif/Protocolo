@@ -246,12 +246,19 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    # Consulta direta e segura via API do Supabase utilizando o eq
-                    res = supabase.table("usuarios").select("*").eq("username", user_input.strip()).execute()
+                    # Solução definitiva: busca todos os utilizadores e valida na aplicação para evitar falhas de RLS ou case-sensitivity
+                    res = supabase.table("usuarios").select("*").execute()
+                    usuarios_lista = res.data if res and res.data else []
                     
-                    if res.data and len(res.data) > 0:
-                        usuario_encontrado = res.data[0]
-                        if str(usuario_encontrado["senha"]).strip() == senha_input.strip():
+                    usuario_encontrado = None
+                    for u in usuarios_lista:
+                        if str(u.get("username", "")).strip().lower() == user_input.strip().lower():
+                            usuario_encontrado = u
+                            break
+                    
+                    if usuario_encontrado:
+                        senha_cadastrada = str(usuario_encontrado.get("senha", "")).strip()
+                        if senha_cadastrada == senha_input.strip():
                             st.session_state.autenticado = True
                             st.session_state.usuario_atual = usuario_encontrado["username"]
                             st.session_state.nome_usuario = usuario_encontrado["nome_completo"]

@@ -246,9 +246,10 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    res = supabase.table("usuarios").select("*").eq("username", user_input.strip()).execute()
+                    # Busca ignorando maiúsculas/minúsculas e removendo espaços acidentais
+                    res = supabase.table("usuarios").select("*").ilike("username", user_input.strip()).execute()
                     dados_user = res.data
-                    if dados_user and dados_user[0]["senha"] == senha_input:
+                    if dados_user and dados_user[0]["senha"].strip() == senha_input.strip():
                         st.session_state.autenticado = True
                         st.session_state.usuario_atual = user_input.strip()
                         st.session_state.nome_usuario = dados_user[0]["nome_completo"]
@@ -269,18 +270,13 @@ class PDFProtocoloEmLote(FPDF):
     pass
 
 def gerar_pdf_lote(lista_dados):
-    # Alterado para formato A4 em paisagem (Landscape) para encaixar perfeitamente 4 blocos (grade 2x2)
     pdf = PDFProtocoloEmLote(orientation="l", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=False, margin=5)
     
-    # Cada página A4 em paisagem comportará 4 protocolos (grade de 2x2)
     for i in range(0, len(lista_dados), 4):
         pdf.add_page()
         bloco_quatro = lista_dados[i:i+4]
         
-        # Coordenadas iniciais e dimensões dos 4 cards na página A4 Paisagem (297mm x 210mm)
-        # Largura útil ~287mm (margens de 5mm), Altura útil ~200mm
-        # Cada card terá cerca de 138mm de largura por 95mm de altura
         posicoes = [
             (10, 10),    # Superior Esquerdo
             (149, 10),   # Superior Direito
@@ -340,7 +336,6 @@ def gerar_pdf_lote(lista_dados):
             pdf.cell(69, 4, "Assinatura do Paciente / Responsável", align="C")
             pdf.cell(69, 4, "Assinatura / Carimbo Atendente", align="C", ln=1)
             
-            # Desenha uma borda leve ao redor de cada comprovante individual para facilitar o recorte
             pdf.rect(x_pos, y_pos, 138, 93)
         
     output = pdf.output(dest="S")

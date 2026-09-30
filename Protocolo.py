@@ -246,13 +246,12 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    # Solução definitiva: busca todos os utilizadores e valida na aplicação para evitar falhas de RLS ou case-sensitivity
                     res = supabase.table("usuarios").select("*").execute()
                     usuarios_lista = res.data if res and res.data else []
                     
                     usuario_encontrado = None
                     for u in usuarios_lista:
-                        if str(u.get("username", "")).strip().lower() == user_input.strip().lower():
+                        if str(u.get("username", "")).strip() == user_input.strip():
                             usuario_encontrado = u
                             break
                     

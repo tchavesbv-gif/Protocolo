@@ -246,27 +246,16 @@ if not st.session_state.autenticado:
             
             if btn_login:
                 try:
-                    res = supabase.table("usuarios").select("*").execute()
-                    usuarios_lista = res.data if res and res.data else []
-                    
-                    usuario_encontrado = None
-                    for u in usuarios_lista:
-                        if str(u.get("username", "")).strip() == user_input.strip():
-                            usuario_encontrado = u
-                            break
-                    
-                    if usuario_encontrado:
-                        senha_cadastrada = str(usuario_encontrado.get("senha", "")).strip()
-                        if senha_cadastrada == senha_input.strip():
-                            st.session_state.autenticado = True
-                            st.session_state.usuario_atual = usuario_encontrado["username"]
-                            st.session_state.nome_usuario = usuario_encontrado["nome_completo"]
-                            st.session_state.perfil_atual = usuario_encontrado["perfil"]
-                            registrar_log(usuario_encontrado["username"], "LOGIN", "Usuário acessou o sistema")
-                            st.success("Login realizado com sucesso!")
-                            st.rerun()
-                        else:
-                            st.error("Usuário ou senha incorretos.")
+                    res = supabase.table("usuarios").select("*").eq("username", user_input.strip()).execute()
+                    dados_user = res.data
+                    if dados_user and dados_user[0]["senha"] == senha_input:
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_atual = user_input.strip()
+                        st.session_state.nome_usuario = dados_user[0]["nome_completo"]
+                        st.session_state.perfil_atual = dados_user[0]["perfil"]
+                        registrar_log(user_input.strip(), "LOGIN", "Usuário acessou o sistema")
+                        st.success("Login realizado com sucesso!")
+                        st.rerun()
                     else:
                         st.error("Usuário ou senha incorretos.")
                 except Exception as e:
@@ -274,41 +263,36 @@ if not st.session_state.autenticado:
         st.stop()
 
 # ==========================================
-# 3. GERAÇÃO DO PDF (4 COMPROVANTES POR FOLHA A4)
+# 3. GERAÇÃO DO PDF (2 COMPROVANTES POR FOLHA A5)
 # ==========================================
 class PDFProtocoloEmLote(FPDF):
     pass
 
 def gerar_pdf_lote(lista_dados):
-    pdf = PDFProtocoloEmLote(orientation="l", unit="mm", format="A4")
+    pdf = PDFProtocoloEmLote(orientation="p", unit="mm", format="A5")
     pdf.set_auto_page_break(auto=False, margin=5)
     
-    for i in range(0, len(lista_dados), 4):
+    for i in range(0, len(lista_dados), 2):
         pdf.add_page()
-        bloco_quatro = lista_dados[i:i+4]
+        bloco_par = lista_dados[i:i+2]
         
-        posicoes = [
-            (10, 10),    # Superior Esquerdo
-            (149, 10),   # Superior Direito
-            (10, 107),   # Inferior Esquerdo
-            (149, 107)   # Inferior Direito
-        ]
-        
-        for idx, dados in enumerate(bloco_quatro):
-            if idx >= len(posicoes):
-                break
-            x_pos, y_pos = posicoes[idx]
-            
-            pdf.set_xy(x_pos, y_pos)
-            pdf.set_font("Arial", "B", 8)
+        for idx, dados in enumerate(bloco_par):
+            if idx > 0:
+                pdf.ln(2)
+                pdf.set_font("Arial", "I", 6.5)
+                pdf.set_text_color(180, 180, 180)
+                pdf.cell(0, 3, "-" * 85, ln=True, align="C")
+                pdf.ln(2)
+
+            pdf.set_font("Arial", "B", 7.5)
             pdf.set_text_color(30, 58, 138)
-            pdf.cell(138, 4, "SEC. MUN. DE SAÚDE DE TEIXEIRAS", border=0, ln=1, align="C")
+            pdf.cell(0, 3.5, "SEC. MUN. DE SAÚDE DE TEIXEIRAS", border=0, ln=True, align="C")
+            pdf.ln(1)
             
-            pdf.set_x(x_pos)
             pdf.set_fill_color(30, 58, 138)
             pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 8)
-            pdf.cell(138, 5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=1)
+            pdf.set_font("Arial", "B", 7.5)
+            pdf.cell(0, 4.5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=True)
             pdf.set_text_color(0, 0, 0)
             
             campos = [
@@ -318,35 +302,29 @@ def gerar_pdf_lote(lista_dados):
             ]
             
             for rot1, val1, rot2, val2 in campos:
-                pdf.set_x(x_pos)
-                pdf.set_font("Arial", "B", 7.5)
-                pdf.cell(18, 5, rot1, border=1)
-                pdf.set_font("Arial", "", 7.5)
-                pdf.cell(51, 5, str(val1), border=1)
+                pdf.set_font("Arial", "B", 7)
+                pdf.cell(18, 4.5, rot1, border=1)
+                pdf.set_font("Arial", "", 7)
+                pdf.cell(59, 4.5, str(val1), border=1)
                 if rot2:
-                    pdf.set_font("Arial", "B", 7.5)
-                    pdf.cell(20, 5, rot2, border=1)
-                    pdf.set_font("Arial", "", 7.5)
-                    pdf.cell(49, 5, str(val2), border=1, ln=1)
+                    pdf.set_font("Arial", "B", 7)
+                    pdf.cell(20, 4.5, rot2, border=1)
+                    pdf.set_font("Arial", "", 7)
+                    pdf.cell(31, 4.5, str(val2), border=1, ln=True)
                 else:
-                    pdf.ln(5)
+                    pdf.ln(4.5)
                     
-            pdf.set_x(x_pos)
-            pdf.ln(1)
-            pdf.set_font("Arial", "I", 6.5)
-            pdf.set_x(x_pos)
-            pdf.multi_cell(138, 3, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.", align="C")
+            pdf.ln(1.5)
+            pdf.set_font("Arial", "I", 6)
+            pdf.multi_cell(0, 3, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.")
+            pdf.ln(3)
+            
+            pdf.set_font("Arial", "", 7)
+            pdf.cell(64, 3.5, "_" * 28, align="C")
+            pdf.cell(64, 3.5, "_" * 28, align="C", ln=True)
+            pdf.cell(64, 3.5, "Assinatura do Paciente / Responsável", align="C")
+            pdf.cell(64, 3.5, "Assinatura / Carimbo Atendente", align="C", ln=True)
             pdf.ln(2)
-            
-            pdf.set_x(x_pos)
-            pdf.set_font("Arial", "", 7.5)
-            pdf.cell(69, 4, "_" * 32, align="C")
-            pdf.cell(69, 4, "_" * 32, align="C", ln=1)
-            pdf.set_x(x_pos)
-            pdf.cell(69, 4, "Assinatura do Paciente / Responsável", align="C")
-            pdf.cell(69, 4, "Assinatura / Carimbo Atendente", align="C", ln=1)
-            
-            pdf.rect(x_pos, y_pos, 138, 93)
         
     output = pdf.output(dest="S")
     if isinstance(output, str):
@@ -506,7 +484,7 @@ with tab1:
 
     if st.session_state.lote_cadastros:
         st.markdown("---")
-        st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta (4 por folha).")
+        st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) aguardando impressão conjunta (2 por folha).")
         
         df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
         df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
@@ -517,9 +495,9 @@ with tab1:
         col_imp1, col_imp2 = st.columns([2, 1])
         with col_imp1:
             st.download_button(
-                label=f"🖨️ IMPRIMIR LOTE CONJUNTO (4 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
+                label=f"🖨️ IMPRIMIR LOTE CONJUNTO (2 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
                 data=pdf_lote_bytes,
-                file_name=f"lote_4_por_folha_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                file_name=f"lote_2_por_folha_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
                 key="btn_baixar_lote_completo"
             )
@@ -535,6 +513,7 @@ with tab2:
     
     bv = st.session_state.busca_version
 
+    # Botão para limpar a busca atual manualmente se desejar
     col_bs1, col_bs2 = st.columns([5, 1])
     with col_bs2:
         if st.session_state.registros_encontrados is not None:

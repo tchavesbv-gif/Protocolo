@@ -415,13 +415,15 @@ else:
         "📈 BI & Indicadores"
     ])
 
+# ==========================================
+# ABA 1: NOVO PROTOCOLO
+# ==========================================
 with tab1:
     st.markdown("### Registrar Novo Exame Coletado")
     
     if "lote_cadastros" not in st.session_state:
         st.session_state.lote_cadastros = []
 
-    # CORREÇÃO APLICADA AQUI: Garante robustez ao carregar a lista de tipos de exames
     try:
         res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
         lista_exames_cadastrados = [t["nome"] for t in res_tipos.data if t.get("nome")] if res_tipos.data else []
@@ -535,6 +537,9 @@ with tab1:
                     st.success("Lote limpo com sucesso!")
                     st.rerun()
 
+# ==========================================
+# ABA 2: ENTREGAR EXAMES
+# ==========================================
 with tab2:
     st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
     
@@ -727,3 +732,166 @@ with tab2:
                                             st.error(f"Erro ao atualizar: {e}")
                                     else:
                                         st.warning("Informe o nome de quem está a retirar o exame.")
+
+# ==========================================
+# ABA 3: RELATÓRIOS & EDIÇÃO
+# ==========================================
+with tab3:
+    st.markdown("### Relatórios Avançados e Gestão de Registros")
+    
+    try:
+        res_all = supabase.table("exames").select("*").order("id", desc=True).execute()
+        df_geral = pd.DataFrame(res_all.data) if res_all.data else pd.DataFrame()
+    except Exception as e:
+        df_geral = pd.DataFrame()
+        st.error(f"Erro ao carregar dados: {e}")
+
+    if not df_geral.empty:
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            status_filtro = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"], key="filtro_status_rel")
+        with col_f2:
+            paciente_filtro = st.text_input("Filtrar por Nome de Paciente", key="filtro_paciente_rel")
+        with col_f3:
+            tipo_filtro_op = st.selectbox("Filtrar por Tipo de Exame", ["Todos"] + list(df_geral["tipo_exame"].dropna().unique()), key="filtro_tipo_rel")
+
+        df_filtrado = df_geral.copy()
+        if status_filtro != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["status"] == status_filtro]
+        if paciente_filtro.strip():
+            df_filtrado = df_filtrado[df_filtrado["nome_paciente"].str.contains(paciente_filtro.strip(), case=False, na=False)]
+        if tipo_filtro_op != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["tipo_exame"] == tipo_filtro_op]
+
+        st.markdown(f"**Total de registros filtrados:** {len(df_filtrado)}")
+        
+        col_exibe_df = df_filtrado[["protocolo", "nome_paciente", "tipo_exame", "data_coleta", "status", "recebido_por", "data_entrega", "usuario_cadastro"]]
+        st.dataframe(col_exibe_df, use_container_width=True)
+
+        csv_data = col_exibe_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Exportar Dados Filtrados para CSV",
+            data=csv_data,
+            file_name=f"relatorio_exames_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv"
+        )
+        
+        st.markdown("---")
+        st.markdown("#### ✏️ Edição ou Exclusão de Registro Específico")
+        protocolo_edicao = st.text_input("Digite o Protocolo exato para Editar ou Excluir:", key="input_proto_edicao")
+        
+        if protocolo_edicao.strip():
+            try:
+                res_busca_ed = supabase.table("exames").select("*").eq("protocolo", protocolo_edicao.strip()).execute()
+                if res_busca_ed.data:
+                    reg_ed = res_busca_ed.data[0]
+                    id_e = reg_ed["id"]
+                    
+                    with st.form("form_edicao_registro"):
+                        st.markdown(f"**Editando Protocolo:** {reg_ed['protocolo']}")
+                        novo_nome_p = st.text_input("Nome do Paciente", value=reg_ed["nome_paciente"])
+                        novo_tipo_e = st.text_input("Tipo de Exame", value=reg_ed["tipo_exame"])
+                        novo_status_e = st.selectbox("Status", ["Pronto para entrega", "Exame retirado"], index=0 if reg_ed["status"]=="Pronto para entrega" else 1)
+                        novo_recebido = st.text_input("Retirado por", value=reg_ed["recebido_por"] or "")
+                        
+                        col_bt_ed1, col_bt_ed2 = st.columns(2)
+                        with col_bt_ed1:
+                            btn_salvar_ed = st.form_submit_button("💾 Salvar Alterações")
+                        with col_bt_ed2:
+                            btn_excluir_reg = st.form_submit_button("🗑️ Excluir Registro")
+                            
+                        if btn_salvar_ed:
+                            supabase.table("exames").update({
+                                "nome_paciente": novo_nome_p,
+                                "tipo_exame": novo_tipo_e,
+                                "status": novo_status_e,
+                                "recebido_por": novo_recebido
+                            }).eq("id", id_e).execute()
+                            registrar_log(st.session_state.usuario_atual, "EDITAR_REGISTRO", f"Protocolo {reg_ed['protocolo']} atualizado.")
+                            st.success("Registro atualizado com sucesso!")
+                            st.rerun()
+                            
+                        if btn_excluir_reg and st.session_state.perfil_atual == "admin":
+                            supabase.table("exames").delete().eq("id", id_e).execute()
+                            registrar_log(st.session_state.usuario_atual, "EXCLUIR_REGISTRO", f"Protocolo {reg_ed['protocolo']} excluído do sistema.")
+                            st.success("Registro excluído com sucesso!")
+                            st.rerun()
+                else:
+                    st.warning("Nenhum registro encontrado com este protocolo.")
+            except Exception as e:
+                st.error(f"Erro ao buscar registro para edição: {e}")
+    else:
+        st.info("Nenhum exame cadastrado no sistema até o momento.")
+
+# ==========================================
+# ABA 4: BI & INDICADORES
+# ==========================================
+with tab4:
+    st.markdown("### Indicadores de Desempenho e Estatísticas (BI)")
+    
+    try:
+        res_bi = supabase.table("exames").select("*").execute()
+        df_bi = pd.DataFrame(res_bi.data) if res_bi.data else pd.DataFrame()
+    except Exception as e:
+        df_bi = pd.DataFrame()
+
+    if not df_bi.empty:
+        total_geral = len(df_bi)
+        total_retirados = len(df_bi[df_bi["status"] == "Exame retirado"])
+        total_pendentes = len(df_bi[df_bi["status"] == "Pronto para entrega"])
+        taxa_retirada = (total_retirados / total_geral) * 100 if total_geral > 0 else 0
+
+        k1, k2, k3, k4 = st.columns(4)
+        with k1:
+            st.markdown(f"""<div class="kpi-card"><p class="kpi-value" style="color:#1e3a8a;">{total_geral}</p><p class="kpi-label">Total de Exames</p></div>""", unsafe_allow_html=True)
+        with k2:
+            st.markdown(f"""<div class="kpi-card"><p class="kpi-value" style="color:#0284c7;">{total_pendentes}</p><p class="kpi-label">Aguardando Retirada</p></div>""", unsafe_allow_html=True)
+        with k3:
+            st.markdown(f"""<div class="kpi-card"><p class="kpi-value" style="color:#10b981;">{total_retirados}</p><p class="kpi-label">Exames Retirados</p></div>""", unsafe_allow_html=True)
+        with k4:
+            st.markdown(f"""<div class="kpi-card"><p class="kpi-value" style="color:#0f172a;">{taxa_retirada:.1f}%</p><p class="kpi-label">Taxa de Conclusão</p></div>""", unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+        
+        c_graf1, c_graf2 = st.columns(2)
+        with c_graf1:
+            st.markdown("##### Distribuição por Status")
+            fig_status = px.pie(df_bi, names="status", hole=0.4, color_discrete_sequence=["#0284c7", "#10b981", "#ef4444"])
+            st.plotly_chart(fig_status, use_container_width=True)
+            
+        with c_graf2:
+            st.markdown("##### Exames mais Frequentes")
+            df_tipos = df_bi["tipo_exame"].value_counts().reset_index()
+            df_tipos.columns = ["Tipo de Exame", "Quantidade"]
+            fig_tipos = px.bar(df_tipos.head(8), x="Quantidade", y="Tipo de Exame", orientation="h", color="Quantidade", color_continuous_scale="Blues")
+            fig_tipos.update_layout(yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_tipos, use_container_width=True)
+    else:
+        st.info("Ainda não há dados suficientes para exibir os indicadores gráficos.")
+
+# ==========================================
+# ABA 5: MANUTENÇÃO & LOGS (APENAS ADMIN)
+# ==========================================
+if st.session_state.perfil_atual == "admin":
+    with tab5:
+        st.markdown("### Auditoria e Logs de Atividades do Sistema")
+        
+        try:
+            res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).limit(100).execute()
+            df_logs = pd.DataFrame(res_logs.data) if res_logs.data else pd.DataFrame()
+        except Exception as e:
+            df_logs = pd.DataFrame()
+            st.warning("A tabela de logs ainda não foi criada no banco de dados Supabase.")
+
+        if not df_logs.empty:
+            st.dataframe(df_logs, use_container_width=True)
+            
+            csv_logs = df_logs.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Baixar Histórico de Logs (CSV)",
+                data=csv_logs,
+                file_name=f"logs_sistema_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("Nenhum registo de log encontrado.")

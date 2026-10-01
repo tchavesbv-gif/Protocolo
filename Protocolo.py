@@ -524,7 +524,7 @@ with tab1:
         col_imp1, col_imp2 = st.columns([2, 1])
         with col_imp1:
             st.download_button(
-                label=f"🖨️ IMPRIMIR LOTE CONJUNTO (4 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
+                label=f"🖨️️ IMPRIMIR LOTE CONJUNTO (4 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
                 data=pdf_lote_bytes,
                 file_name=f"lote_4_por_folha_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
@@ -717,16 +717,24 @@ with tab2:
                                     if recebido_por_input.strip():
                                         novo_status = "Exame retirado"
                                         d_entrega = datetime.now().strftime("%d/%m/%Y")
+                                        rec_nome = recebido_por_input.strip()
                                         try:
                                             supabase.table("exames").update({
                                                 "status": novo_status,
                                                 "data_entrega": d_entrega,
-                                                "recebido_por": recebido_por_input.strip(),
+                                                "recebido_por": rec_nome,
                                                 "usuario_entrega": st.session_state.nome_usuario
                                             }).eq("id", id_reg).execute()
                                             
-                                            registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {recebido_por_input.strip()}")
-                                            st.success("Exame marcado como retirado com sucesso!")
+                                            registrar_log(st.session_state.usuario_atual, "ENTREGA_EXAME", f"Exame do protocolo {protocolo} entregue para {rec_nome}")
+                                            
+                                            # Atualiza instantaneamente a variável na tela para exibir o bloco de upload e PDF sem atraso
+                                            reg["status"] = novo_status
+                                            reg["data_entrega"] = d_entrega
+                                            reg["recebido_por"] = rec_nome
+                                            reg["usuario_entrega"] = st.session_state.nome_usuario
+                                            
+                                            st.success("Exame marcado como retirado com sucesso! Comprovantes liberados abaixo.")
                                             st.rerun()
                                         except Exception as e:
                                             st.error(f"Erro ao atualizar: {e}")
@@ -864,18 +872,19 @@ with tab4:
             df_tipos = df_bi["tipo_exame"].value_counts().reset_index()
             df_tipos.columns = ["Tipo de Exame", "Quantidade"]
             
-            # Gráfico aprimorado com nomes em destaque dentro das barras e cores fortes
+            # Paleta de cores destacando o 1º lugar e mantendo contraste com texto branco
+            cores_barras = ['#1d4ed8' if i == 0 else '#3b82f6' if i < 3 else '#60a5fa' for i in range(len(df_tipos.head(8)))]
+            
             fig_tipos = px.bar(
                 df_tipos.head(8), 
                 x="Quantidade", 
                 y="Tipo de Exame", 
                 orientation="h", 
-                color="Quantidade", 
-                color_continuous_scale="Viridis",
                 text="Tipo de Exame"
             )
             
             fig_tipos.update_traces(
+                marker_color=cores_barras,
                 texttemplate='<b>%{text}</b> (%{x})', 
                 textposition='inside',
                 insidetextanchor='start',
@@ -885,9 +894,8 @@ with tab4:
             fig_tipos.update_layout(
                 yaxis=dict(
                     categoryorder='total ascending',
-                    showticklabels=False  # Oculta os rótulos repetidos na esquerda já que estão dentro da barra
+                    showticklabels=False
                 ),
-                coloraxis_showscale=False,
                 margin=dict(l=10, r=30, t=10, b=10)
             )
             st.plotly_chart(fig_tipos, use_container_width=True)

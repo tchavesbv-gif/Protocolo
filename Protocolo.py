@@ -864,20 +864,30 @@ with tab4:
             df_tipos = df_bi["tipo_exame"].value_counts().reset_index()
             df_tipos.columns = ["Tipo de Exame", "Quantidade"]
             
-            # Gráfico melhorado (Sem barra lateral de cor redundante e com números nas barras)
+            # Gráfico aprimorado com nomes em destaque dentro das barras e cores fortes
             fig_tipos = px.bar(
                 df_tipos.head(8), 
                 x="Quantidade", 
                 y="Tipo de Exame", 
                 orientation="h", 
                 color="Quantidade", 
-                color_continuous_scale="Blues",
-                text="Quantidade"
+                color_continuous_scale="Viridis",
+                text="Tipo de Exame"
             )
-            fig_tipos.update_traces(texttemplate='%{text}', textposition='outside')
+            
+            fig_tipos.update_traces(
+                texttemplate='<b>%{text}</b> (%{x})', 
+                textposition='inside',
+                insidetextanchor='start',
+                textfont=dict(color='white', size=12, family="Arial")
+            )
+            
             fig_tipos.update_layout(
-                yaxis={'categoryorder':'total ascending'},
-                coloraxis_showscale=False,  # Remove a barra de cores lateral poluída
+                yaxis=dict(
+                    categoryorder='total ascending',
+                    showticklabels=False  # Oculta os rótulos repetidos na esquerda já que estão dentro da barra
+                ),
+                coloraxis_showscale=False,
                 margin=dict(l=10, r=30, t=10, b=10)
             )
             st.plotly_chart(fig_tipos, use_container_width=True)

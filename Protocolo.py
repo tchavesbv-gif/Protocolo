@@ -863,8 +863,23 @@ with tab4:
             st.markdown("##### Exames mais Frequentes")
             df_tipos = df_bi["tipo_exame"].value_counts().reset_index()
             df_tipos.columns = ["Tipo de Exame", "Quantidade"]
-            fig_tipos = px.bar(df_tipos.head(8), x="Quantidade", y="Tipo de Exame", orientation="h", color="Quantidade", color_continuous_scale="Blues")
-            fig_tipos.update_layout(yaxis={'categoryorder':'total ascending'})
+            
+            # Gráfico melhorado (Sem barra lateral de cor redundante e com números nas barras)
+            fig_tipos = px.bar(
+                df_tipos.head(8), 
+                x="Quantidade", 
+                y="Tipo de Exame", 
+                orientation="h", 
+                color="Quantidade", 
+                color_continuous_scale="Blues",
+                text="Quantidade"
+            )
+            fig_tipos.update_traces(texttemplate='%{text}', textposition='outside')
+            fig_tipos.update_layout(
+                yaxis={'categoryorder':'total ascending'},
+                coloraxis_showscale=False,  # Remove a barra de cores lateral poluída
+                margin=dict(l=10, r=30, t=10, b=10)
+            )
             st.plotly_chart(fig_tipos, use_container_width=True)
     else:
         st.info("Ainda não há dados suficientes para exibir os indicadores gráficos.")

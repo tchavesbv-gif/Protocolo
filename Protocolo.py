@@ -310,4 +310,67 @@ def gerar_pdf_lote(lista_dados):
             pdf.set_x(x_pos)
             pdf.set_fill_color(30, 58, 138)
             pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 8
+            pdf.set_font("Arial", "B", 8)
+            pdf.cell(138, 5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=1)
+            pdf.set_text_color(0, 0, 0)
+            
+            campos = [
+                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
+                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
+                ("Exames:", dados["tipo_exame"], "", "")
+            ]
+            
+            for rot1, val1, rot2, val2 in campos:
+                pdf.set_x(x_pos)
+                pdf.set_font("Arial", "B", 7.5)
+                pdf.cell(18, 5, rot1, border=1)
+                pdf.set_font("Arial", "", 7.5)
+                pdf.cell(51, 5, str(val1), border=1)
+                if rot2:
+                    pdf.set_font("Arial", "B", 7.5)
+                    pdf.cell(20, 5, rot2, border=1)
+                    pdf.set_font("Arial", "", 7.5)
+                    pdf.cell(49, 5, str(val2), border=1, ln=1)
+                else:
+                    pdf.ln(5)
+                    
+            pdf.set_x(x_pos)
+            pdf.ln(1)
+            pdf.set_font("Arial", "I", 6.5)
+            pdf.set_x(x_pos)
+            pdf.multi_cell(138, 3, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientações.", align="C")
+            pdf.ln(2)
+            
+            pdf.set_x(x_pos)
+            pdf.set_font("Arial", "", 7.5)
+            pdf.cell(69, 4, "_" * 32, align="C")
+            pdf.cell(69, 4, "_" * 32, align="C", ln=1)
+            pdf.set_x(x_pos)
+            pdf.cell(69, 4, "Assinatura do Paciente / Responsável", align="C")
+            pdf.cell(69, 4, "Assinatura / Carimbo Atendente", align="C", ln=1)
+            
+            pdf.rect(x_pos, y_pos, 138, 93)
+        
+    output = pdf.output(dest="S")
+    if isinstance(output, str):
+        return output.encode("latin1")
+    return bytes(output)
+
+# ==========================================
+# 4. INTERFACE PRINCIPAL DO SISTEMA
+# ==========================================
+col_logo, col_h1, col_h2 = st.columns([1.2, 5.7, 2.6])
+with col_logo:
+    if os.path.exists("logo_prefeitura.jpg"):
+        st.image("logo_prefeitura.jpg", width=150)
+    else:
+        st.markdown("")
+
+with col_h1:
+    st.markdown("""
+    <div class="header-box-unica" style="margin-bottom: 0px;">
+        <div>
+            <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
+            <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
+        </div>
+    </div>

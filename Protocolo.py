@@ -393,4 +393,151 @@ with col_h2:
             st.session_state.perfil_atual = None
             st.session_state.nome_usuario = None
             st.session_state.termo_busca_executado = ""
-            st.session_
+            st.session_state.registros_encontrados = None
+            st.session_state.df_relatorio_filtrado = None
+            st.rerun()
+
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+
+if st.session_state.perfil_atual == "admin":
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios & Edição", 
+        "📈 BI & Indicadores",
+        "⚙ Manutenção & Logs"
+    ])
+else:
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios & Edição",
+        "📈 BI & Indicadores"
+    ])
+
+# ==========================================
+# ABA 1: NOVO PROTOCOLO
+# ==========================================
+with tab1:
+    try:
+        st.markdown("### Registar Novo Exame Coletado")
+        
+        if "lote_cadastros" not in st.session_state:
+            st.session_state.lote_cadastros = []
+
+        lista_exames_cadastrados = []
+        try:
+            res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
+            if res_tipos.data:
+                lista_exames_cadastrados = [t["nome"] for t in res_tipos.data if t.get("nome")]
+        except Exception:
+            pass
+
+        if "form_version" not in st.session_state:
+            st.session_state.form_version = 0
+        v = st.session_state.form_version
+
+        with st.form(f"form_cadastro_direto_{v}", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
+            with col2:
+                nome_paciente = st.text_input("Nome Completo do/a Paciente", key=f"val_nome_{v}")
+            
+            st.markdown("---")
+            st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
+            
+            col_ex1, col_ex2 = st.columns(2)
+            with col_ex1:
+                exame_selecionado = st.selectbox(
+                    "Selecionar da Lista Cadastrada",
+                    ["-- Selecione ou digite abaixo --"] + lista_exames_cadastrados,
+                    key=f"sel_exame_{v}"
+                )
+            with col_ex2:
+                exame_novo_input = st.text_input("Ou Digite um Novo Tipo de Exame", key=f"val_novo_tipo_{v}")
+                
+            submitted = st.form_submit_button("Salvar e Adicionar ao Lote")
+            
+            if submitted:
+                tipo_exame_final = ""
+                novo_digitado = exame_novo_input.strip() if exame_novo_input else ""
+                
+                if novo_digitado:
+                    tipo_exame_final = novo_digitado
+                elif exame_selecionado and exame_selecionado != "-- Selecione ou digite abaixo --":
+                    tipo_exame_final = exame_selecionado
+                    
+                if nome_paciente.strip() and tipo_exame_final:
+                    num_protocolo = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
+                    data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    
+                    try:
+                        supabase.table("exames").insert({
+                            "protocolo": num_protocolo,
+                            "data_coleta": data_coleta_str,
+                            "nome_paciente": nome_paciente.strip(),
+                            "tipo_exame": tipo_exame_final,
+                            "status": "Pronto para entrega",
+                            "recebido_por": "",
+                            "data_protocolo": data_protocolo_str,
+                            "usuario_cadastro": st.session_state.nome_usuario,
+                            "usuario_entrega": "",
+                            "comprovante_url": ""
+                        }).execute()
+                        
+                        if novo_digitado:
+                            try:
+                                existe_tipo = any(t.lower() == novo_digitado.lower() for t in lista_exames_cadastrados)
+                                if not existe_tipo:
+                                    supabase.table("tipos_exames").insert({"nome": novo_digitado}).execute()
+                            except Exception:
+                                pass
+                                
+                        st.session_state.lote_cadastros.append({
+                            "protocolo": num_protocolo,
+                            "nome_paciente": nome_paciente.strip(),
+                            "tipo_exame": tipo_exame_final,
+                            "data_coleta": data_coleta_str,
+                            "data_entrega": "Pendente",
+                            "recebido_por": ""
+                        })
+                        
+                        registrar_log(
+                            st.session_state.usuario_atual, 
+                            "NOVO_PROTOCOLO", 
+                            f"Protocolo gerado: {num_protocolo} para paciente {nome_paciente} ({tipo_exame_final})"
+                        )
+                        st.session_state.form_version += 1
+                        st.success(f"Exame inserido! Protocolo gerado: **{num_protocolo}** (Adicionado ao lote de impressão)")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao salvar no Supabase: {e}")
+                else:
+                    st.warning("Preencha o Nome Completo do Paciente e informe/selecione o Tipo de Exame.")
+
+        if st.session_state.lote_cadastros:
+            st.markdown("---")
+            st.info(f"📦 **Lote atual:** Existem **{len(st.session_state.lote_cadastros)}** exame(s) a aguardar impressão conjunta (4 por folha).")
+            
+            df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
+            df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
+            st.dataframe(df_lote, use_container_width=True)
+            
+            pdf_lote_bytes = gerar_pdf_lote(st.session_state.lote_cadastros)
+            
+            col_imp1, col_imp2 = st.columns([2, 1])
+            with col_imp1:
+                st.download_button(
+                    label=f"🖨 IMPRIMIR LOTE CONJUNTO (4 POR FOLHA) - {len(st.session_state.lote_cadastros)} EXAMES",
+                    data=pdf_lote_bytes,
+                    file_name=f"lote_4_por_folha_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="btn_baixar_lote_completo"
+                )
+            with col_imp2:
+                with st.expander("🗑️ Limpar Lote Atual"):
+                    if st.button("Confirmar Limpeza do Lote", key="btn_limpar_lote_confirma"):
+                        st.session_state.lote_cadastros = []
+                        st.success("Lote limpo com sucesso!")

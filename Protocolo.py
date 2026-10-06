@@ -379,4 +379,7 @@ with col_h1:
 with col_h2:
     icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍💼"
     st.markdown(f"""
-    <div class="header-box-unica" style="flex-direction: column; align
+    <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 14px 20px;">
+        <p class="header-user-info">{icone_perfil} <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
+    </div>
+    """, unsafe_allow_html=True)

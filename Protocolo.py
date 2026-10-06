@@ -310,32 +310,4 @@ def gerar_pdf_lote(lista_dados):
             pdf.set_x(x_pos)
             pdf.set_fill_color(30, 58, 138)
             pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 8)
-            pdf.cell(138, 5, f" PROTOCOLO: {dados['protocolo']}", border=1, fill=True, ln=1)
-            pdf.set_text_color(0, 0, 0)
-            
-            campos = [
-                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
-                ("Exames:", dados["tipo_exame"], "", "")
-            ]
-            
-            for rot1, val1, rot2, val2 in campos:
-                pdf.set_x(x_pos)
-                pdf.set_font("Arial", "B", 7.5)
-                pdf.cell(18, 5, rot1, border=1)
-                pdf.set_font("Arial", "", 7.5)
-                pdf.cell(51, 5, str(val1), border=1)
-                if rot2:
-                    pdf.set_font("Arial", "B", 7.5)
-                    pdf.cell(20, 5, rot2, border=1)
-                    pdf.set_font("Arial", "", 7.5)
-                    pdf.cell(49, 5, str(val2), border=1, ln=1)
-                else:
-                    pdf.ln(5)
-                    
-            pdf.set_x(x_pos)
-            pdf.ln(1)
-            pdf.set_font("Arial", "I", 6.5)
-            pdf.set_x(x_pos)
-            pdf.multi_cell(138, 3, "Declaro que recebi os resultados dos exames descritos acima,
+            pdf.set_font("Arial", "B", 8

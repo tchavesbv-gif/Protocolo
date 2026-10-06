@@ -377,7 +377,7 @@ with col_h1:
     """, unsafe_allow_html=True)
 
 with col_h2:
-    icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍💼"
+    icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍‍💼"
     st.markdown(f"""
     <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 14px 20px;">
         <p class="header-user-info">{icone_perfil} <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
@@ -460,14 +460,16 @@ with tab1:
         if submitted:
             tipo_exame_final = ""
             
+            # Tratamento robusto para salvar novos tipos de exames no Supabase automaticamente
             if exame_novo_input.strip():
                 tipo_exame_final = exame_novo_input.strip().upper()
                 try:
                     resp_duplicado = supabase.table("tipos_exames").select("*").ilike("nome", tipo_exame_final).execute()
                     if not resp_duplicado.data:
                         supabase.table("tipos_exames").insert({"nome": tipo_exame_final}).execute()
-                except Exception:
-                    pass
+                        st.toast(f"Novo tipo '{tipo_exame_final}' salvo no catálogo!", icon="✅")
+                except Exception as err:
+                    st.warning(f"Aviso: Não foi possível salvar no catálogo automático ({err}).")
             elif exame_selecionado != "-- Selecione ou digite abaixo --":
                 tipo_exame_final = exame_selecionado
                 
@@ -785,7 +787,7 @@ with tab3:
         )
         
         st.markdown("---")
-        st.markdown("#### ✏️️ Edição ou Exclusão de Registro Específico")
+        st.markdown("#### ✏️ Edição ou Exclusão de Registro Específico")
         protocolo_edicao = st.text_input("Digite o Protocolo exato para Editar ou Excluir:", key="input_proto_edicao")
         
         if protocolo_edicao.strip():

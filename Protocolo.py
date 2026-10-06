@@ -237,9 +237,9 @@ if not st.session_state.autenticado:
         """, unsafe_allow_html=True)
         
         with st.form("form_login"):
-            st.markdown("### Identificação do Usuário")
-            user_input = st.text_input("Usuário")
-            senha_input = st.text_input("Senha", type="password")
+            st.markdown("### Identificação do Utilizador")
+            user_input = st.text_input("Utilizador")
+            senha_input = st.text_input("Palavra-passe", type="password")
             
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             btn_login = st.form_submit_button("Entrar no Sistema", use_container_width=True)
@@ -253,7 +253,7 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_atual = "Tiago"
                     st.session_state.nome_usuario = "Tiago da Silva Chaves"
                     st.session_state.perfil_atual = "admin"
-                    registrar_log("Tiago", "LOGIN", "Usuário acessou o sistema com credenciais definitivas")
+                    registrar_log("Tiago", "LOGIN", "Utilizador acedeu ao sistema com credenciais definitivas")
                     st.success("Login realizado com sucesso!")
                     st.rerun()
                 elif u_limpo == "admin" and s_limpa == "123":
@@ -261,7 +261,7 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_atual = "admin"
                     st.session_state.nome_usuario = "Administrador do Sistema"
                     st.session_state.perfil_atual = "admin"
-                    registrar_log("admin", "LOGIN", "Usuário acessou o sistema com credenciais definitivas")
+                    registrar_log("admin", "LOGIN", "Utilizador acedeu ao sistema com credenciais definitivas")
                     st.success("Login realizado com sucesso!")
                     st.rerun()
                 elif u_limpo == "lilian" and s_limpa == "123456":
@@ -269,11 +269,11 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_atual = "Lilian"
                     st.session_state.nome_usuario = "Lilian"
                     st.session_state.perfil_atual = "atendente"
-                    registrar_log("Lilian", "LOGIN", "Usuário acessou o sistema com credenciais definitivas")
+                    registrar_log("Lilian", "LOGIN", "Utilizador acedeu ao sistema com credenciais definitivas")
                     st.success("Login realizado com sucesso!")
                     st.rerun()
                 else:
-                    st.error("Usuário ou senha incorretos.")
+                    st.error("Utilizador ou palavra-passe incorretos.")
         st.stop()
 
 # ==========================================
@@ -371,6 +371,26 @@ with col_h1:
     <div class="header-box-unica" style="margin-bottom: 0px;">
         <div>
             <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
-            <p class="header-subtitle">Sistema de Controle de Protocolos, Coletas e Entrega de Exames</p>
+            <p class="header-subtitle">Sistema de Controlo de Protocolos, Coletas e Entrega de Exames</p>
         </div>
     </div>
+    """, unsafe_allow_html=True)
+
+with col_h2:
+    icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍💼"
+    st.markdown(f"""
+    <div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 14px 20px;">
+        <p class="header-user-info">{icone_perfil} <b>{st.session_state.nome_usuario}</b> ({st.session_state.perfil_atual.upper()})</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_vazia_btn, col_b_sair = st.columns([1.3, 1.2])
+    with col_b_sair:
+        if st.button("Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
+            registrar_log(st.session_state.usuario_atual, "LOGOUT", "Utilizador desligou-se")
+            st.session_state.autenticado = False
+            st.session_state.usuario_atual = None
+            st.session_state.perfil_atual = None
+            st.session_state.nome_usuario = None
+            st.session_state.termo_busca_executado = ""
+            st.session_

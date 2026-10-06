@@ -541,3 +541,96 @@ with tab1:
                     if st.button("Confirmar Limpeza do Lote", key="btn_limpar_lote_confirma"):
                         st.session_state.lote_cadastros = []
                         st.success("Lote limpo com sucesso!")
+                        st.rerun()
+    except Exception as e:
+        st.error(f"Erro ao carregar a aba de cadastro: {e}")
+
+# ==========================================
+# ABA 2: ENTREGAR EXAMES
+# ==========================================
+with tab2:
+    try:
+        st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
+        
+        bv = st.session_state.busca_version
+
+        col_bs1, col_bs2 = st.columns([5, 1])
+        with col_bs2:
+            if st.session_state.registros_encontrados is not None:
+                if st.button("Limpar Pesquisa", key="btn_reset_busca", use_container_width=True):
+                    st.session_state.termo_busca_executado = ""
+                    st.session_state.registros_encontrados = None
+                    st.session_state.busca_version += 1
+                    st.rerun()
+
+        with st.form(f"form_busca_entregar_{bv}"):
+            col_b1, col_b2 = st.columns([4, 1])
+            with col_b1:
+                busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado, key=f"input_busca_val_{bv}")
+            with col_b2:
+                st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
+                btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
+                
+            if btn_executar_busca:
+                st.session_state.termo_busca_executado = busca_input
+                if busca_input.strip():
+                    try:
+                        res_proto = supabase.table("exames").select("*").eq("protocolo", busca_input.strip()).execute()
+                        if res_proto.data:
+                            st.session_state.registros_encontrados = res_proto.data
+                        else:
+                            res_busca = supabase.table("exames").select("*").ilike("nome_paciente", f"%{busca_input.strip()}%").order("id", desc=True).execute()
+                            st.session_state.registros_encontrados = res_busca.data
+                        
+                        if not st.session_state.registros_encontrados:
+                            st.warning("Nenhum exame encontrado com este código ou nome.")
+                    except Exception as e:
+                        st.session_state.registros_encontrados = []
+                        st.error(f"Erro na busca: {e}")
+                else:
+                    st.session_state.registros_encontrados = None
+                    st.warning("Digite um código de protocolo ou nome para realizar a busca.")
+
+        if st.session_state.registros_encontrados is not None:
+            registros = st.session_state.registros_encontrados
+            if registros:
+                st.markdown(f"**Encontrado(s) {len(registros)} registo(s):**")
+                for reg in registros:
+                    id_reg = reg["id"]
+                    protocolo = reg["protocolo"]
+                    data_coleta = reg["data_coleta"]
+                    nome_paciente_original = reg["nome_paciente"]
+                    nome_paciente_exibicao = nome_paciente_original
+                    tipo_exame = reg["tipo_exame"]
+                    status_atual = reg["status"] if reg["status"] else "Pronto para entrega"
+                    data_entrega_db = reg["data_entrega"] or ""
+                    recebido_por_db = reg["recebido_por"] or ""
+                    data_protocolo = reg["data_protocolo"] or "N/D"
+                    usr_cad = reg["usuario_cadastro"] or "N/D"
+                    usr_ent = reg["usuario_entrega"] or "N/D"
+                    comprovante_url = reg.get("comprovante_url", "")
+                    
+                    atrasado = False
+                    if status_atual == "Pronto para entrega" and data_protocolo != "N/D":
+                        try:
+                            dt_prot = datetime.strptime(data_protocolo[:10], "%d/%m/%Y")
+                            if (datetime.now() - dt_prot).days > 15:
+                                atrasado = True
+                        except Exception:
+                            pass
+
+                    try:
+                        res_hist = supabase.table("exames").select("id, protocolo, tipo_exame, status, data_coleta").eq("nome_paciente", nome_paciente_original).execute()
+                        total_paciente = len(res_hist.data) if res_hist.data else 1
+                        total_entregues_paciente = sum(1 for x in res_hist.data if x.get("status") == "Exame retirado")
+                    except Exception:
+                        total_paciente = 1
+                        total_entregues_paciente = 0
+
+                    card_class = "card-paciente-atrasado" if atrasado else "card-paciente"
+                    
+                    with st.container():
+                        st.markdown(f"""
+                        <div class="{card_class}">
+                            <b>Protocolo:</b> {protocolo} | <b>Data Registo:</b> {data_protocolo} (Cadastrado por: <i>{usr_cad}</i>)<br>
+                            <b>Paciente:</b> <span style="font-size:16px; color:#1e3

@@ -305,4 +305,149 @@ def gerar_pdf_lote(lista_dados):
             pdf.set_xy(x_pos, y_pos)
             pdf.set_font("Arial", "B", 8)
             pdf.set_text_color(30, 58, 138)
-            pdf.cell(138, 4, "SEC. MUN. DE SA
+            pdf.cell(138, 4, "SEC. MUN. DE SAÚDE DE TEIXEIRAS", border=0, ln=1, align="C")
+            
+            pdf.set_x(x_pos)
+            pdf.set_fill_color(30, 58, 138)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 8)
+            pdf.cell(138, 5, " PROTOCOLO: " + str(dados['protocolo']), border=1, fill=True, ln=1)
+            pdf.set_text_color(0, 0, 0)
+            
+            campos = [
+                ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
+                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
+                ("Exames:", dados["tipo_exame"], "", "")
+            ]
+            
+            for rot1, val1, rot2, val2 in campos:
+                pdf.set_x(x_pos)
+                pdf.set_font("Arial", "B", 7.5)
+                pdf.cell(18, 5, rot1, border=1)
+                pdf.set_font("Arial", "", 7.5)
+                pdf.cell(51, 5, str(val1), border=1)
+                if rot2:
+                    pdf.set_font("Arial", "B", 7.5)
+                    pdf.cell(20, 5, rot2, border=1)
+                    pdf.set_font("Arial", "", 7.5)
+                    pdf.cell(49, 5, str(val2), border=1, ln=1)
+                else:
+                    pdf.ln(5)
+                    
+            pdf.set_x(x_pos)
+            pdf.ln(1)
+            pdf.set_font("Arial", "I", 6.5)
+            pdf.set_x(x_pos)
+            pdf.multi_cell(138, 3, "Declaro que recebi os resultados dos exames descritos acima, conferindo a integridade e ciente das orientacoes.", align="C")
+            pdf.ln(2)
+            
+            pdf.set_x(x_pos)
+            pdf.set_font("Arial", "", 7.5)
+            pdf.cell(69, 4, "_" * 32, align="C")
+            pdf.cell(69, 4, "_" * 32, align="C", ln=1)
+            pdf.set_x(x_pos)
+            pdf.cell(69, 4, "Assinatura do Paciente / Responsavel", align="C")
+            pdf.cell(69, 4, "Assinatura / Carimbo Atendente", align="C", ln=1)
+            
+            pdf.rect(x_pos, y_pos, 138, 93)
+        
+    output = pdf.output(dest="S")
+    if isinstance(output, str):
+        return output.encode("latin1")
+    return bytes(output)
+
+# ==========================================
+# 4. INTERFACE PRINCIPAL DO SISTEMA
+# ==========================================
+col_logo, col_h1, col_h2 = st.columns([1.2, 5.7, 2.6])
+with col_logo:
+    if os.path.exists("logo_prefeitura.jpg"):
+        st.image("logo_prefeitura.jpg", width=150)
+    else:
+        st.markdown("")
+
+with col_h1:
+    st.markdown("""
+    <div class="header-box-unica" style="margin-bottom: 0px;">
+        <div>
+            <p class="header-title">Secretaria Municipal de Saúde de Teixeiras</p>
+            <p class="header-subtitle">Sistema de Controlo de Protocolos, Coletas e Entrega de Exames</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_h2:
+    icone_perfil = "👑" if st.session_state.perfil_atual == "admin" else "👨‍‍💼"
+    st.markdown(
+        '<div class="header-box-unica" style="flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 0px; padding: 14px 20px;">'
+        '<p class="header-user-info">' + icone_perfil + ' <b>' + str(st.session_state.nome_usuario) + '</b> (' + str(st.session_state.perfil_atual).upper() + ')</p>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+    
+    col_vazia_btn, col_b_sair = st.columns([1.3, 1.2])
+    with col_b_sair:
+        if st.button("Sair do Sistema", key="btn_sair_sistema", use_container_width=True):
+            registrar_log(st.session_state.usuario_atual, "LOGOUT", "Utilizador desligou-se")
+            st.session_state.autenticado = False
+            st.session_state.usuario_atual = None
+            st.session_state.perfil_atual = None
+            st.session_state.nome_usuario = None
+            st.session_state.termo_busca_executado = ""
+            st.session_state.registros_encontrados = None
+            st.session_state.df_relatorio_filtrado = None
+            st.rerun()
+
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+
+if st.session_state.perfil_atual == "admin":
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios & Edição", 
+        "📈 BI & Indicadores",
+        "⚙ Manutenção & Logs"
+    ])
+else:
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "➕ Novo Protocolo", 
+        "📦 Entregar Exames", 
+        "📊 Relatórios & Edição",
+        "📈 BI & Indicadores"
+    ])
+
+# ==========================================
+# ABA 1: NOVO PROTOCOLO
+# ==========================================
+with tab1:
+    try:
+        st.markdown("### Registar Novo Exame Coletado")
+        
+        if "lote_cadastros" not in st.session_state:
+            st.session_state.lote_cadastros = []
+
+        lista_exames_cadastrados = []
+        try:
+            res_tipos = supabase.table("tipos_exames").select("nome").order("nome").execute()
+            if res_tipos.data:
+                lista_exames_cadastrados = [t["nome"] for t in res_tipos.data if t.get("nome")]
+        except Exception:
+            pass
+
+        if "form_version" not in st.session_state:
+            st.session_state.form_version = 0
+        v = st.session_state.form_version
+
+        with st.form("form_cadastro_direto_" + str(v), clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
+            with col2:
+                nome_paciente = st.text_input("Nome Completo do/a Paciente", key="val_nome_" + str(v))
+            
+            st.markdown("---")
+            st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
+            
+            col_ex1, col_ex2 = st.columns(2)
+            with col_ex1:
+                exame_

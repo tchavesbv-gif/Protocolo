@@ -921,12 +921,55 @@ with tab4:
         st.error("Erro ao carregar a aba de BI: " + str(e))
 
 # ==========================================
-# ABA 5: MANUTENÇÃO & LOGS (APENAS ADMIN)
+# ABA 5: MANUTENÇÃO, LOGS & MONITOR DE ESPAÇO (APENAS ADMIN)
 # ==========================================
 if st.session_state.perfil_atual == "admin":
     with tab5:
         try:
-            st.markdown("### Auditoria e Logs de Atividades do Sistema")
+            st.markdown("### 📊 Monitor de Armazenamento na Nuvem (Supabase Free Tier)")
+            
+            bytes_usados = 0
+            total_arquivos = 0
+            try:
+                res_objects = supabase.table("objects", schema="storage").select("metadata, bucket_id").execute()
+                if res_objects.data:
+                    for obj in res_objects.data:
+                        meta = obj.get("metadata")
+                        if meta and isinstance(meta, dict):
+                            bytes_usados += int(meta.get("size", 0))
+                            total_arquivos += 1
+            except Exception:
+                try:
+                    res_files = supabase.storage.from_("comprovantes").list()
+                    if res_files:
+                        total_arquivos = len(res_files)
+                        bytes_usados = sum(f.get("metadata", {}).get("size", 0) for f in res_files if f.get("metadata"))
+                except Exception:
+                    pass
+
+            limite_bytes = 1073741824  # 1 GB
+            megabytes_usados = bytes_usados / (1024 * 1024)
+            porcentagem_uso = (bytes_usados / limite_bytes) * 100 if limite_bytes > 0 else 0
+
+            kpi_s1, kpi_s2, kpi_s3 = st.columns(3)
+            with kpi_s1:
+                st.markdown(f'<div class="kpi-card"><p class="kpi-value" style="color:#1e3a8a;">{megabytes_usados:.2f} MB</p><p class="kpi-label">Espaço Usado (Storage)</p></div>', unsafe_allow_html=True)
+            with kpi_s2:
+                st.markdown(f'<div class="kpi-card"><p class="kpi-value" style="color:#0284c7;">{total_arquivos}</p><p class="kpi-label">Ficheiros / Comprovantes</p></div>', unsafe_allow_html=True)
+            with kpi_s3:
+                cor_txt = "#ef4444" if porcentagem_uso > 80 else "#10b981"
+                st.markdown(f'<div class="kpi-card"><p class="kpi-value" style="color:{cor_txt};">{porcentagem_uso:.1f}%</p><p class="kpi-label">Limite do Plano Free (1 GB)</p></div>', unsafe_allow_html=True)
+
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+            st.progress(min(porcentagem_uso / 100.0, 1.0))
+
+            if porcentagem_uso > 80:
+                st.warning("⚠️ **Atenção:** O armazenamento na nuvem ultrapassou 80% da capacidade do plano gratuito. Considere arquivar ou limpar comprovantes antigos.")
+            else:
+                st.info("💡 **Dica:** O espaço livre está adequado para o funcionamento rotineiro da Secretaria.")
+
+            st.markdown("---")
+            st.markdown("### 📋 Auditoria e Logs de Atividades do Sistema")
             
             try:
                 res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).limit(100).execute()
@@ -942,9 +985,10 @@ if st.session_state.perfil_atual == "admin":
                     label="📥 Baixar Histórico de Logs (CSV)",
                     data=csv_logs,
                     file_name="logs_sistema_" + datetime.now().strftime('%Y%m%d_%H%M') + ".csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key="btn_baixar_logs_csv"
                 )
             else:
                 st.info("Nenhum registo de log encontrado.")
         except Exception as e:
-            st.error("Erro ao carregar a aba de logs: " + str(e))
+            st.error("Erro ao carregar o painel de manutenção: " + str(e))

@@ -928,35 +928,18 @@ if st.session_state.perfil_atual == "admin":
         try:
             st.markdown("### 📊 Monitor de Armazenamento na Nuvem (Supabase Free Tier)")
             
-            bytes_usados = 0
             total_arquivos = 0
+            bytes_usados = 0
             try:
-                # Lista o conteúdo dentro da pasta 'comprovantes' do bucket
-                lista_arquivos = supabase.storage.from_("comprovantes").list("comprovantes")
-                if not lista_arquivos:
-                    lista_arquivos = supabase.storage.from_("comprovantes").list()
-                
-                if lista_arquivos:
-                    for arq in lista_arquivos:
-                        if arq.get("name") and "." not in arq.get("name") and not arq.get("metadata"):
-                            sub_lista = supabase.storage.from_("comprovantes").list("comprovantes/" + arq.get("name"))
-                            if sub_lista:
-                                for sub_arq in sub_lista:
-                                    total_arquivos += 1
-                                    meta_sub = sub_arq.get("metadata")
-                                    if meta_sub and isinstance(meta_sub, dict):
-                                        bytes_usados += int(meta_sub.get("size", 0))
-                        else:
+                res_contagem = supabase.table("exames").select("id, comprovante_url").execute()
+                if res_contagem.data:
+                    for r in res_contagem.data:
+                        if r.get("comprovante_url") and str(r.get("comprovante_url")).strip() != "":
                             total_arquivos += 1
-                            meta = arq.get("metadata")
-                            if meta and isinstance(meta, dict):
-                                bytes_usados += int(meta.get("size", 0))
             except Exception:
                 pass
 
-            # Fallback de estimativa caso os metadados venham vazios da listagem básica
-            if bytes_usados == 0 and total_arquivos > 0:
-                bytes_usados = total_arquivos * 150000
+            bytes_usados = total_arquivos * 1310720 
 
             limite_bytes = 1073741824  # 1 GB
             megabytes_usados = bytes_usados / (1024 * 1024)

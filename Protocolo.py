@@ -931,21 +931,17 @@ if st.session_state.perfil_atual == "admin":
             bytes_usados = 0
             total_arquivos = 0
             try:
-                res_objects = supabase.table("objects", schema="storage").select("metadata, bucket_id").execute()
-                if res_objects.data:
-                    for obj in res_objects.data:
-                        meta = obj.get("metadata")
+                # Lista direta de objetos dentro do bucket de comprovantes
+                lista_arquivos = supabase.storage.from_("comprovantes").list()
+                if lista_arquivos:
+                    total_arquivos = len(lista_arquivos)
+                    for arq in lista_arquivos:
+                        # O dicionário metadata contém o tamanho ('size') do ficheiro
+                        meta = arq.get("metadata")
                         if meta and isinstance(meta, dict):
                             bytes_usados += int(meta.get("size", 0))
-                            total_arquivos += 1
             except Exception:
-                try:
-                    res_files = supabase.storage.from_("comprovantes").list()
-                    if res_files:
-                        total_arquivos = len(res_files)
-                        bytes_usados = sum(f.get("metadata", {}).get("size", 0) for f in res_files if f.get("metadata"))
-                except Exception:
-                    pass
+                pass
 
             limite_bytes = 1073741824  # 1 GB
             megabytes_usados = bytes_usados / (1024 * 1024)

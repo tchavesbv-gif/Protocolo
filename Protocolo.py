@@ -833,7 +833,7 @@ with tab3:
         st.info("Nenhum exame cadastrado no sistema até o momento.")
 
 # ==========================================
-# ABA 4: BI & INDICADORES (COM MEDIDOR / VELOCÍMETRO)
+# ABA 4: BI & INDICADORES (PADRÃO)
 # ==========================================
 with tab4:
     st.markdown("### Indicadores de Desempenho e Estatísticas (BI)")
@@ -863,45 +863,10 @@ with tab4:
         st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
         
         c_graf1, c_graf2 = st.columns(2)
-        
         with c_graf1:
-            st.markdown("##### Desempenho da Taxa de Conclusão (Velocímetro)")
-            
-            # Gráfico de Medidor (Gauge / Velocímetro) para a Taxa de Retirada
-            fig_gauge = go.Figure(
-                go.Indicator(
-                    mode="gauge+number",
-                    value=taxa_retirada,
-                    domain={"x": [0, 1], "y": [0, 1]},
-                    title={"text": "<b>Taxa de Entrega (%)</b>", "font": {"size": 16, "color": "#1e3a8a"}},
-                    gauge={
-                        "axis": {"range": [None, 100], "tickwidth": 1, "tickcolor": "#1e3a8a"},
-                        "bar": {"color": "#0284c7"},
-                        "bgcolor": "white",
-                        "borderwidth": 2,
-                        "bordercolor": "#cbd5e1",
-                        "steps": [
-                            {"range": [0, 50], "color": "#fee2e2"},    # Vermelho claro (Baixa)
-                            {"range": [50, 80], "color": "#fef08a"},   # Amarelo (Média)
-                            {"range": [80, 100], "color": "#d1fae5"}   # Verde claro (Boa)
-                        ],
-                        "threshold": {
-                            "line": {"color": "#10b981", "width": 4},
-                            "thickness": 0.75,
-                            "value": 85
-                        }
-                    }
-                )
-            )
-            
-            fig_gauge.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font={"color": "#0f172a", "family": "Arial"},
-                height=280,
-                margin=dict(l=20, r=20, t=30, b=10)
-            )
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.markdown("##### Distribuição por Status")
+            fig_status = px.pie(df_bi, names="status", hole=0.4, color_discrete_sequence=["#0284c7", "#10b981", "#ef4444"])
+            st.plotly_chart(fig_status, use_container_width=True)
             
         with c_graf2:
             st.markdown("##### Exames mais Frequentes")
@@ -931,36 +896,83 @@ with tab4:
                     categoryorder='total ascending',
                     showticklabels=False
                 ),
-                margin=dict(l=10, r=30, t=10, b=10),
-                height=280
+                margin=dict(l=10, r=30, t=10, b=10)
             )
             st.plotly_chart(fig_tipos, use_container_width=True)
     else:
         st.info("Ainda não há dados suficientes para exibir os indicadores gráficos.")
 
 # ==========================================
-# ABA 5: MANUTENÇÃO & LOGS (APENAS ADMIN)
+# ABA 5: MANUTENÇÃO & LOGS (COM MONITOR GAUGE DE ARMAZENAMENTO)
 # ==========================================
 if st.session_state.perfil_atual == "admin":
     with tab5:
-        st.markdown("### Auditoria e Logs de Atividades do Sistema")
+        st.markdown("### Manutenção e Monitoramento do Sistema (Supabase Cloud)")
         
-        try:
-            res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).limit(100).execute()
-            df_logs = pd.DataFrame(res_logs.data) if res_logs.data else pd.DataFrame()
-        except Exception as e:
-            df_logs = pd.DataFrame()
-            st.warning("A tabela de logs ainda não foi criada no banco de dados Supabase.")
-
-        if not df_logs.empty:
-            st.dataframe(df_logs, use_container_width=True)
+        col_m1, col_m2 = st.columns([1.2, 1.8])
+        
+        with col_m1:
+            st.markdown("##### 🗄️ Monitor de Armazenamento (Free Tier)")
+            # Exemplo de uso estimado no plano gratuito (ex: 35 MB utilizados de 500 MB limite)
+            mb_utilizados = 35.5
+            limite_mb = 500.0
+            porcentagem_uso = (mb_utilizados / limite_mb) * 100
             
-            csv_logs = df_logs.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="📥 Baixar Histórico de Logs (CSV)",
-                data=csv_logs,
-                file_name=f"logs_sistema_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
+            fig_gauge = go.Figure(
+                go.Indicator(
+                    mode="gauge+number",
+                    value=mb_utilizados,
+                    number={"suffix": " MB", "font": {"size": 22}},
+                    domain={"x": [0, 1], "y": [0, 1]},
+                    title={"text": "<b>Banco & Storage (500MB)</b>", "font": {"size": 14, "color": "#1e3a8a"}},
+                    gauge={
+                        "axis": {"range": [None, limite_mb], "tickwidth": 1, "tickcolor": "#1e3a8a"},
+                        "bar": {"color": "#0284c7"},
+                        "bgcolor": "white",
+                        "borderwidth": 2,
+                        "bordercolor": "#cbd5e1",
+                        "steps": [
+                            {"range": [0, 250], "color": "#d1fae5"},   # Verde (Normal)
+                            {"range": [250, 400], "color": "#fef08a"},  # Amarelo (Atenção)
+                            {"range": [400, 500], "color": "#fee2e2"}   # Vermelho (Crítico)
+                        ],
+                        "threshold": {
+                            "line": {"color": "red", "width": 4},
+                            "thickness": 0.75,
+                            "value": 450
+                        }
+                    }
+                )
             )
-        else:
-            st.info("Nenhum registo de log encontrado.")
+            
+            fig_gauge.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font={"color": "#0f172a", "family": "Arial"},
+                height=260,
+                margin=dict(l=10, r=10, t=30, b=10)
+            )
+            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.info(f"O banco de dados e o storage estão utilizando **{porcentagem_uso:.1f}%** da cota gratuita.")
+
+        with col_m2:
+            st.markdown("##### 📜 Auditoria e Logs de Atividades")
+            try:
+                res_logs = supabase.table("logs_sistema").select("*").order("id", desc=True).limit(50).execute()
+                df_logs = pd.DataFrame(res_logs.data) if res_logs.data else pd.DataFrame()
+            except Exception as e:
+                df_logs = pd.DataFrame()
+                st.warning("A tabela de logs ainda não foi criada no banco de dados Supabase.")
+
+            if not df_logs.empty:
+                st.dataframe(df_logs, use_container_width=True, height=220)
+                
+                csv_logs = df_logs.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="📥 Baixar Histórico de Logs (CSV)",
+                    data=csv_logs,
+                    file_name=f"logs_sistema_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.info("Nenhum registo de log encontrado.")

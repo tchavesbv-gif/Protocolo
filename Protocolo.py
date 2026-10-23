@@ -61,7 +61,7 @@ div[data-testid="stButton"] button {
 div[data-testid="stButton"] button:hover {
     background-color: #b91c1c !important;
 }
-label, .stTextInput label, .stSelectbox label, .stDateInput label {
+label, .stTextInput label, .stSelectbox label, .stDateInput label, .stRadio label {
     font-size: 17px !important;
     font-weight: 700 !important;
     color: #1e3a8a !important;
@@ -556,11 +556,11 @@ with tab1:
         st.error("Erro ao carregar a aba de cadastro: " + str(e))
 
 # ==========================================
-# ABA 2: ENTREGAR EXAMES (COM BUSCA POR DATA DE COLETA OU DADOS DO PACIENTE)
+# ABA 2: ENTREGAR EXAMES (BUSCA POR PROTOCOLO, NOME OU DATA DE NASCIMENTO)
 # ==========================================
 with tab2:
     try:
-        st.markdown("### Busca de Exames (Por Protocolo, Nome ou Data de Coleta) e Entrega")
+        st.markdown("### Busca de Exames (Por Protocolo, Nome ou Data de Nascimento) e Entrega")
         
         bv = st.session_state.busca_version
 
@@ -574,14 +574,14 @@ with tab2:
                     st.rerun()
 
         with st.form("form_busca_entregar_" + str(bv)):
-            tipo_busca = st.radio("Critério de Pesquisa:", ["Código de Protocolo ou Nome do Paciente", "Data da Coleta"], horizontal=True, key="tipo_pesquisa_radio_" + str(bv))
+            tipo_busca = st.radio("Critério de Pesquisa:", ["Código de Protocolo ou Nome do Paciente", "Data de Nascimento"], horizontal=True, key="tipo_pesquisa_radio_" + str(bv))
             
             if tipo_busca == "Código de Protocolo ou Nome do Paciente":
                 busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado, key="input_busca_val_" + str(bv))
                 data_busca_input = None
             else:
                 busca_input = ""
-                data_busca_input = st.date_input("Selecione a Data da Coleta", datetime.now(), format="DD/MM/YYYY", key="input_busca_data_" + str(bv))
+                data_busca_input = st.date_input("Selecione a Data de Nascimento do Paciente", datetime.now(), format="DD/MM/YYYY", key="input_busca_data_nasc_" + str(bv))
 
             btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
                 
@@ -610,14 +610,14 @@ with tab2:
                         data_str_busca = data_busca_input.strftime("%d/%m/%Y")
                         st.session_state.termo_busca_executado = data_str_busca
                         try:
-                            res_data = supabase.table("exames").select("*").eq("data_coleta", data_str_busca).order("id", desc=True).execute()
+                            res_data = supabase.table("exames").select("*").eq("data_nascimento", data_str_busca).order("id", desc=True).execute()
                             st.session_state.registros_encontrados = res_data.data if res_data.data else []
                             
                             if not st.session_state.registros_encontrados:
-                                st.warning("Nenhum exame encontrado para a data de coleta: " + data_str_busca)
+                                st.warning("Nenhum exame encontrado para a data de nascimento: " + data_str_busca)
                         except Exception as e:
                             st.session_state.registros_encontrados = []
-                            st.error("Erro na busca por data: " + str(e))
+                            st.error("Erro na busca por data de nascimento: " + str(e))
 
         if st.session_state.registros_encontrados is not None:
             registros = st.session_state.registros_encontrados
@@ -820,7 +820,6 @@ with tab3:
 
             st.markdown("**Total de registos filtrados:** " + str(len(df_filtrado)))
             
-            # Formatação defensiva da coluna data_nascimento se existir
             cols_desejadas = ["protocolo", "nome_paciente", "tipo_exame", "data_coleta", "status", "recebido_por", "data_entrega", "usuario_cadastro"]
             if "data_nascimento" in df_filtrado.columns:
                 cols_desejadas.insert(2, "data_nascimento")

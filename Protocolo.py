@@ -61,7 +61,7 @@ div[data-testid="stButton"] button {
 div[data-testid="stButton"] button:hover {
     background-color: #b91c1c !important;
 }
-label, .stTextInput label, .stSelectbox label {
+label, .stTextInput label, .stSelectbox label, .stDateInput label {
     font-size: 17px !important;
     font-weight: 700 !important;
     color: #1e3a8a !important;
@@ -314,10 +314,11 @@ def gerar_pdf_lote(lista_dados):
             pdf.cell(138, 5, " PROTOCOLO: " + str(dados['protocolo']), border=1, fill=True, ln=1)
             pdf.set_text_color(0, 0, 0)
             
+            dt_nasc_exib = dados.get("data_nascimento", "N/I")
             campos = [
                 ("Coleta:", dados["data_coleta"], "Retirada:", dados["data_entrega"]),
-                ("Paciente:", dados["nome_paciente"], "Retirado por:", dados["recebido_por"]),
-                ("Exames:", dados["tipo_exame"], "", "")
+                ("Paciente:", dados["nome_paciente"], "Dt. Nasc.:", dt_nasc_exib),
+                ("Exames:", dados["tipo_exame"], "Retirado por:", dados["recebido_por"])
             ]
             
             for rot1, val1, rot2, val2 in campos:
@@ -325,12 +326,12 @@ def gerar_pdf_lote(lista_dados):
                 pdf.set_font("Arial", "B", 7.5)
                 pdf.cell(18, 5, rot1, border=1)
                 pdf.set_font("Arial", "", 7.5)
-                pdf.cell(51, 5, str(val1), border=1)
+                pdf.cell(51, 5, str(val1)[:30], border=1)
                 if rot2:
                     pdf.set_font("Arial", "B", 7.5)
                     pdf.cell(20, 5, rot2, border=1)
                     pdf.set_font("Arial", "", 7.5)
-                    pdf.cell(49, 5, str(val2), border=1, ln=1)
+                    pdf.cell(49, 5, str(val2)[:28], border=1, ln=1)
                 else:
                     pdf.ln(5)
                     
@@ -439,11 +440,13 @@ with tab1:
         v = st.session_state.form_version
 
         with st.form("form_cadastro_direto_" + str(v), clear_on_submit=True):
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns([1, 2, 1])
             with col1:
                 data_coleta_input = st.date_input("Data da Coleta", datetime.now(), format="DD/MM/YYYY")
             with col2:
                 nome_paciente = st.text_input("Nome Completo do/a Paciente", key="val_nome_" + str(v))
+            with col3:
+                data_nasc_input = st.date_input("Data de Nascimento (Opcional)", value=None, format="DD/MM/YYYY", key="val_nasc_" + str(v))
             
             st.markdown("---")
             st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
@@ -472,21 +475,26 @@ with tab1:
                 if nome_paciente.strip() and tipo_exame_final:
                     num_protocolo = "TX-" + datetime.now().strftime('%Y%m%d%H%M%S')
                     data_coleta_str = data_coleta_input.strftime("%d/%m/%Y")
+                    data_nasc_str = data_nasc_input.strftime("%d/%m/%Y") if data_nasc_input else ""
                     data_protocolo_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                     
+                    payload_insert = {
+                        "protocolo": num_protocolo,
+                        "data_coleta": data_coleta_str,
+                        "nome_paciente": nome_paciente.strip(),
+                        "tipo_exame": tipo_exame_final,
+                        "status": "Pronto para entrega",
+                        "recebido_por": "",
+                        "data_protocolo": data_protocolo_str,
+                        "usuario_cadastro": st.session_state.nome_usuario,
+                        "usuario_entrega": "",
+                        "comprovante_url": ""
+                    }
+                    if data_nasc_str:
+                        payload_insert["data_nascimento"] = data_nasc_str
+
                     try:
-                        supabase.table("exames").insert({
-                            "protocolo": num_protocolo,
-                            "data_coleta": data_coleta_str,
-                            "nome_paciente": nome_paciente.strip(),
-                            "tipo_exame": tipo_exame_final,
-                            "status": "Pronto para entrega",
-                            "recebido_por": "",
-                            "data_protocolo": data_protocolo_str,
-                            "usuario_cadastro": st.session_state.nome_usuario,
-                            "usuario_entrega": "",
-                            "comprovante_url": ""
-                        }).execute()
+                        supabase.table("exames").insert(payload_insert).execute()
                         
                         if novo_digitado:
                             try:
@@ -499,6 +507,7 @@ with tab1:
                         st.session_state.lote_cadastros.append({
                             "protocolo": num_protocolo,
                             "nome_paciente": nome_paciente.strip(),
+                            "data_nascimento": data_nasc_str or "N/I",
                             "tipo_exame": tipo_exame_final,
                             "data_coleta": data_coleta_str,
                             "data_entrega": "Pendente",
@@ -522,8 +531,8 @@ with tab1:
             st.markdown("---")
             st.info("📦 **Lote atual:** Existem **" + str(len(st.session_state.lote_cadastros)) + "** exame(s) a aguardar impressao conjunta (4 por folha).")
             
-            df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "tipo_exame", "data_coleta"]]
-            df_lote.columns = ["Protocolo", "Paciente", "Tipo de Exame", "Data Coleta"]
+            df_lote = pd.DataFrame(st.session_state.lote_cadastros)[["protocolo", "nome_paciente", "data_nascimento", "tipo_exame", "data_coleta"]]
+            df_lote.columns = ["Protocolo", "Paciente", "Dt. Nasc.", "Tipo de Exame", "Data Coleta"]
             st.dataframe(df_lote, use_container_width=True)
             
             pdf_lote_bytes = gerar_pdf_lote(st.session_state.lote_cadastros)
@@ -547,11 +556,11 @@ with tab1:
         st.error("Erro ao carregar a aba de cadastro: " + str(e))
 
 # ==========================================
-# ABA 2: ENTREGAR EXAMES
+# ABA 2: ENTREGAR EXAMES (COM BUSCA POR DATA DE COLETA OU DADOS DO PACIENTE)
 # ==========================================
 with tab2:
     try:
-        st.markdown("### Busca Global Rápida (Leitor de Código de Barras ou Nome) e Entrega")
+        st.markdown("### Busca de Exames (Por Protocolo, Nome ou Data de Coleta) e Entrega")
         
         bv = st.session_state.busca_version
 
@@ -565,32 +574,50 @@ with tab2:
                     st.rerun()
 
         with st.form("form_busca_entregar_" + str(bv)):
-            col_b1, col_b2 = st.columns([4, 1])
-            with col_b1:
+            tipo_busca = st.radio("Critério de Pesquisa:", ["Código de Protocolo ou Nome do Paciente", "Data da Coleta"], horizontal=True, key="tipo_pesquisa_radio_" + str(bv))
+            
+            if tipo_busca == "Código de Protocolo ou Nome do Paciente":
                 busca_input = st.text_input("Bip / Digite o Código do Protocolo (Ex: TX-...) ou Nome do Paciente:", value=st.session_state.termo_busca_executado, key="input_busca_val_" + str(bv))
-            with col_b2:
-                st.markdown("<div style='margin-top: 27px;'></div>", unsafe_allow_html=True)
-                btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
+                data_busca_input = None
+            else:
+                busca_input = ""
+                data_busca_input = st.date_input("Selecione a Data da Coleta", datetime.now(), format="DD/MM/YYYY", key="input_busca_data_" + str(bv))
+
+            btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
                 
             if btn_executar_busca:
-                st.session_state.termo_busca_executado = busca_input
-                if busca_input.strip():
-                    try:
-                        res_proto = supabase.table("exames").select("*").eq("protocolo", busca_input.strip()).execute()
-                        if res_proto.data:
-                            st.session_state.registros_encontrados = res_proto.data
-                        else:
-                            res_busca = supabase.table("exames").select("*").ilike("nome_paciente", "%" + busca_input.strip() + "%").order("id", desc=True).execute()
-                            st.session_state.registros_encontrados = res_busca.data
-                        
-                        if not st.session_state.registros_encontrados:
-                            st.warning("Nenhum exame encontrado com este código ou nome.")
-                    except Exception as e:
-                        st.session_state.registros_encontrados = []
-                        st.error("Erro na busca: " + str(e))
+                if tipo_busca == "Código de Protocolo ou Nome do Paciente":
+                    st.session_state.termo_busca_executado = busca_input
+                    if busca_input.strip():
+                        try:
+                            res_proto = supabase.table("exames").select("*").eq("protocolo", busca_input.strip()).execute()
+                            if res_proto.data:
+                                st.session_state.registros_encontrados = res_proto.data
+                            else:
+                                res_busca = supabase.table("exames").select("*").ilike("nome_paciente", "%" + busca_input.strip() + "%").order("id", desc=True).execute()
+                                st.session_state.registros_encontrados = res_busca.data
+                            
+                            if not st.session_state.registros_encontrados:
+                                st.warning("Nenhum exame encontrado com este código ou nome.")
+                        except Exception as e:
+                            st.session_state.registros_encontrados = []
+                            st.error("Erro na busca: " + str(e))
+                    else:
+                        st.session_state.registros_encontrados = None
+                        st.warning("Digite um código de protocolo ou nome para realizar a busca.")
                 else:
-                    st.session_state.registros_encontrados = None
-                    st.warning("Digite um código de protocolo ou nome para realizar a busca.")
+                    if data_busca_input:
+                        data_str_busca = data_busca_input.strftime("%d/%m/%Y")
+                        st.session_state.termo_busca_executado = data_str_busca
+                        try:
+                            res_data = supabase.table("exames").select("*").eq("data_coleta", data_str_busca).order("id", desc=True).execute()
+                            st.session_state.registros_encontrados = res_data.data if res_data.data else []
+                            
+                            if not st.session_state.registros_encontrados:
+                                st.warning("Nenhum exame encontrado para a data de coleta: " + data_str_busca)
+                        except Exception as e:
+                            st.session_state.registros_encontrados = []
+                            st.error("Erro na busca por data: " + str(e))
 
         if st.session_state.registros_encontrados is not None:
             registros = st.session_state.registros_encontrados
@@ -601,6 +628,7 @@ with tab2:
                     protocolo = reg["protocolo"]
                     data_coleta = reg["data_coleta"]
                     nome_paciente_original = reg["nome_paciente"]
+                    data_nasc_reg = reg.get("data_nascimento") or "N/I"
                     nome_paciente_exibicao = nome_paciente_original
                     tipo_exame = reg["tipo_exame"]
                     status_atual = reg["status"] if reg["status"] else "Pronto para entrega"
@@ -634,7 +662,7 @@ with tab2:
                         st.markdown(
                             '<div class="' + card_class + '">'
                             '<b>Protocolo:</b> ' + str(protocolo) + ' | <b>Data Registo:</b> ' + str(data_protocolo) + ' (Cadastrado por: <i>' + str(usr_cad) + '</i>)<br>'
-                            '<b>Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">' + str(nome_paciente_exibicao) + '</span><br>'
+                            '<b>Paciente:</b> <span style="font-size:16px; color:#1e3a8a; font-weight:bold;">' + str(nome_paciente_exibicao) + '</span> | <b>Dt. Nasc.:</b> ' + str(data_nasc_reg) + '<br>'
                             '<b>Exame:</b> ' + str(tipo_exame) + ' | <b>Coleta:</b> ' + str(data_coleta) + '<br>'
                             '<hr style="margin: 8px 0; border: 0.5px solid #cbd5e1;">'
                             '<small style="color: #475569;">📊 <b>Historico do Paciente:</b> ' + str(total_paciente) + ' exames cadastrados no total (' + str(total_entregues_paciente) + ' ja retirados).</small>'
@@ -704,6 +732,7 @@ with tab2:
                                 "protocolo": protocolo,
                                 "data_coleta": data_coleta,
                                 "nome_paciente": nome_paciente_original,
+                                "data_nascimento": data_nasc_reg,
                                 "tipo_exame": tipo_exame,
                                 "data_entrega": data_entrega_db or datetime.now().strftime("%d/%m/%Y"),
                                 "recebido_por": recebido_por_db
@@ -769,13 +798,15 @@ with tab3:
             df_geral = pd.DataFrame()
 
         if not df_geral.empty:
-            col_f1, col_f2, col_f3 = st.columns(3)
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             with col_f1:
                 status_filtro = st.selectbox("Filtrar por Status", ["Todos", "Pronto para entrega", "Exame retirado"], key="filtro_status_rel")
             with col_f2:
                 paciente_filtro = st.text_input("Filtrar por Nome de Paciente", key="filtro_paciente_rel")
             with col_f3:
                 tipo_filtro_op = st.selectbox("Filtrar por Tipo de Exame", ["Todos"] + list(df_geral["tipo_exame"].dropna().unique()), key="filtro_tipo_rel")
+            with col_f4:
+                data_coleta_filtro = st.text_input("Filtrar por Data Coleta (DD/MM/YYYY)", key="filtro_datacoleta_rel")
 
             df_filtrado = df_geral.copy()
             if status_filtro != "Todos":
@@ -784,10 +815,17 @@ with tab3:
                 df_filtrado = df_filtrado[df_filtrado["nome_paciente"].str.contains(paciente_filtro.strip(), case=False, na=False)]
             if tipo_filtro_op != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["tipo_exame"] == tipo_filtro_op]
+            if data_coleta_filtro.strip():
+                df_filtrado = df_filtrado[df_filtrado["data_coleta"].str.contains(data_coleta_filtro.strip(), na=False)]
 
             st.markdown("**Total de registos filtrados:** " + str(len(df_filtrado)))
             
-            col_exibe_df = df_filtrado[["protocolo", "nome_paciente", "tipo_exame", "data_coleta", "status", "recebido_por", "data_entrega", "usuario_cadastro"]]
+            # Formatação defensiva da coluna data_nascimento se existir
+            cols_desejadas = ["protocolo", "nome_paciente", "tipo_exame", "data_coleta", "status", "recebido_por", "data_entrega", "usuario_cadastro"]
+            if "data_nascimento" in df_filtrado.columns:
+                cols_desejadas.insert(2, "data_nascimento")
+                
+            col_exibe_df = df_filtrado[[c for c in cols_desejadas if c in df_filtrado.columns]]
             st.dataframe(col_exibe_df, use_container_width=True)
 
             csv_data = col_exibe_df.to_csv(index=False).encode("utf-8")
@@ -812,6 +850,7 @@ with tab3:
                         with st.form("form_edicao_registo"):
                             st.markdown("**A editar Protocolo:** " + str(reg_ed['protocolo']))
                             novo_nome_p = st.text_input("Nome do Paciente", value=reg_ed["nome_paciente"])
+                            novo_nasc_p = st.text_input("Data de Nascimento (DD/MM/YYYY)", value=reg_ed.get("data_nascimento") or "")
                             novo_tipo_e = st.text_input("Tipo de Exame", value=reg_ed["tipo_exame"])
                             novo_status_e = st.selectbox("Status", ["Pronto para entrega", "Exame retirado"], index=0 if reg_ed["status"]=="Pronto para entrega" else 1)
                             novo_recebido = st.text_input("Retirado por", value=reg_ed["recebido_por"] or "")
@@ -823,12 +862,16 @@ with tab3:
                                 btn_excluir_reg = st.form_submit_button("🗑️ Excluir Registo")
                                 
                             if btn_salvar_ed:
-                                supabase.table("exames").update({
+                                update_payload = {
                                     "nome_paciente": novo_nome_p,
                                     "tipo_exame": novo_tipo_e,
                                     "status": novo_status_e,
                                     "recebido_por": novo_recebido
-                                }).eq("id", id_e).execute()
+                                }
+                                if "data_nascimento" in reg_ed:
+                                    update_payload["data_nascimento"] = novo_nasc_p
+
+                                supabase.table("exames").update(update_payload).eq("id", id_e).execute()
                                 registrar_log(st.session_state.usuario_atual, "EDITAR_REGISTRO", "Protocolo " + str(reg_ed['protocolo']) + " atualizado.")
                                 st.success("Registo atualizado com sucesso!")
                                 st.rerun()

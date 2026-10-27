@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 from fpdf import FPDF
 import pandas as pd
@@ -446,7 +446,14 @@ with tab1:
             with col2:
                 nome_paciente = st.text_input("Nome Completo do/a Paciente", key="val_nome_" + str(v))
             with col3:
-                data_nasc_input = st.date_input("Data de Nascimento (Opcional)", value=None, format="DD/MM/YYYY", key="val_nasc_" + str(v))
+                data_nasc_input = st.date_input(
+                    "Data de Nascimento (Opcional)", 
+                    value=None, 
+                    min_value=date(1900, 1, 1), 
+                    max_value=datetime.now().date(), 
+                    format="DD/MM/YYYY", 
+                    key="val_nasc_" + str(v)
+                )
             
             st.markdown("---")
             st.markdown("##### Selecione o Exame Existente ou Digite um Novo Abaixo")
@@ -581,7 +588,14 @@ with tab2:
                 data_busca_input = None
             else:
                 busca_input = ""
-                data_busca_input = st.date_input("Selecione a Data de Nascimento do Paciente", datetime.now(), format="DD/MM/YYYY", key="input_busca_data_nasc_" + str(bv))
+                data_busca_input = st.date_input(
+                    "Selecione a Data de Nascimento do Paciente", 
+                    value=datetime.now(), 
+                    min_value=date(1900, 1, 1), 
+                    max_value=datetime.now().date(), 
+                    format="DD/MM/YYYY", 
+                    key="input_busca_data_nasc_" + str(bv)
+                )
 
             btn_executar_busca = st.form_submit_button("🔍 Buscar Exame", use_container_width=True)
                 
